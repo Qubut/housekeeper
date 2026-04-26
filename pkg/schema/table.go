@@ -446,13 +446,22 @@ func extractTablesFromSQL(sql *parser.SQL) (map[string]*TableInfo, error) {
 		//nolint:nestif // Complex nested logic needed for comprehensive table extraction
 		if stmt.CreateTable != nil {
 			table := stmt.CreateTable
+			// "default" is ClickHouse's implicit database — normalize it away so that
+			// `CREATE TABLE foo` and `CREATE TABLE default.foo` resolve to the same key.
+			// Without this, system.tables always returns fully-qualified names like
+			// `default.foo`, which never matches source schemas written without a prefix.
+			db := ""
+			if table.Database != nil && normalizeIdentifier(*table.Database) != "default" {
+				db = normalizeIdentifier(*table.Database)
+			}
 			tableName := normalizeIdentifier(table.Name)
-			if table.Database != nil {
-				tableName = normalizeIdentifier(*table.Database) + "." + normalizeIdentifier(table.Name)
+			if db != "" {
+				tableName = db + "." + tableName
 			}
 
 			tableInfo := &TableInfo{
 				Name:        normalizeIdentifier(table.Name),
+				Database:    db,
 				OrReplace:   table.OrReplace,
 				IfNotExists: table.IfNotExists,
 			}
@@ -472,10 +481,6 @@ func extractTablesFromSQL(sql *parser.SQL) (map[string]*TableInfo, error) {
 					}
 					tableInfo.AsSourceTable = &asTableName
 				}
-			}
-
-			if table.Database != nil {
-				tableInfo.Database = normalizeIdentifier(*table.Database)
 			}
 			if table.OnCluster != nil {
 				tableInfo.Cluster = *table.OnCluster
