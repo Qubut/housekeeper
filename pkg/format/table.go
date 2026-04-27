@@ -688,8 +688,7 @@ func (f *Formatter) formatModifyColumn(op *parser.ModifyColumnOperation) string 
 		parts = append(parts, f.formatExpression(&op.Default.Expression))
 	}
 	if op.Comment != nil {
-		parts = append(parts, f.keyword("COMMENT"))
-		parts = append(parts, "'"+*op.Comment+"'")
+		parts = append(parts, f.keyword("COMMENT"), *op.Comment)
 	}
 	if op.Codec != nil {
 		parts = append(parts, f.formatCodec(op.Codec))
