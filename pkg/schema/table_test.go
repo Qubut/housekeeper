@@ -176,8 +176,13 @@ func TestInferSchemaCluster(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := inferSchemaCluster(tc.tables)
-			require.Equal(t, tc.expected, got)
+			clusters := make([]string, 0, len(tc.tables))
+			for _, table := range tc.tables {
+				if table.Cluster != "" {
+					clusters = append(clusters, table.Cluster)
+				}
+			}
+			require.Equal(t, tc.expected, inferSchemaClusterFromStrings(clusters))
 		})
 	}
 }

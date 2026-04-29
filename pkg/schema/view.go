@@ -3,6 +3,7 @@ package schema
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -92,6 +93,15 @@ func compareViews(current, target *parser.SQL) ([]*ViewDiff, error) { // nolint:
 	// Extract views from both schemas
 	currentViews := extractViewsFromSQL(current)
 	targetViews := extractViewsFromSQL(target)
+
+	// Mirror the table-side cluster reconciliation: rewrite live-DB cluster names
+	// to the source-side cluster (typically a server macro like '{cluster}'),
+	// otherwise the macro vs resolved-name mismatch causes spurious DROP+CREATE on
+	// every diff. See inferSchemaClusterFromStrings for the resolution policy.
+	ReconcileClusters(maps.Values(currentViews), maps.Values(targetViews),
+		func(v *ViewInfo) string { return v.Cluster },
+		func(v *ViewInfo, c string) { v.Cluster = c },
+	)
 
 	var diffs []*ViewDiff
 
@@ -307,7 +317,7 @@ func extractViewsFromSQL(sql *parser.SQL) map[string]*ViewInfo {
 
 			view := &ViewInfo{
 				Name:           normalizeIdentifier(stmt.CreateView.Name),
-				Database:       normalizeIdentifier(getStringValue(stmt.CreateView.Database)),
+				Database:       normalizeDefaultDatabase(getStringValue(stmt.CreateView.Database)),
 				Cluster:        getStringValue(stmt.CreateView.OnCluster),
 				IsMaterialized: stmt.CreateView.Materialized,
 				OrReplace:      stmt.CreateView.OrReplace,

@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -89,6 +90,15 @@ func compareDictionaries(current, target *parser.SQL) ([]*DictionaryDiff, error)
 	// Extract dictionary information from both SQL structures
 	currentDicts := extractDictionaryInfo(current)
 	targetDicts := extractDictionaryInfo(target)
+
+	// Mirror table/view cluster reconciliation: rewrite live-DB cluster names to
+	// match the source-side cluster (typically a server macro like '{cluster}'),
+	// otherwise the macro vs resolved-name mismatch causes spurious DROP+CREATE
+	// on every diff. See inferSchemaClusterFromStrings for the resolution policy.
+	ReconcileClusters(maps.Values(currentDicts), maps.Values(targetDicts),
+		func(d *DictionaryInfo) string { return d.Cluster },
+		func(d *DictionaryInfo, c string) { d.Cluster = c },
+	)
 
 	// Pre-allocate diffs slice with estimated capacity
 	diffs := make([]*DictionaryDiff, 0, len(currentDicts)+len(targetDicts))
@@ -196,7 +206,7 @@ func extractDictionaryInfo(sql *parser.SQL) map[string]*DictionaryInfo {
 			}
 
 			if dict.Database != nil {
-				info.Database = normalizeIdentifier(*dict.Database)
+				info.Database = normalizeDefaultDatabase(*dict.Database)
 			}
 
 			if dict.OnCluster != nil {

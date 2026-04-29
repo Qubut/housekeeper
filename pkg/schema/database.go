@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -83,6 +84,13 @@ func compareDatabases(current, target *parser.SQL) ([]*DatabaseDiff, error) {
 	// Extract database information from both SQL structures
 	currentDBs := extractDatabaseInfo(current)
 	targetDBs := extractDatabaseInfo(target)
+
+	// Reconcile ON CLUSTER between live state and source intent (see
+	// inferSchemaClusterFromStrings for the policy).
+	ReconcileClusters(maps.Values(currentDBs), maps.Values(targetDBs),
+		func(d *DatabaseInfo) string { return d.Cluster },
+		func(d *DatabaseInfo, c string) { d.Cluster = c },
+	)
 
 	// Pre-allocate diffs slice with estimated capacity
 	diffs := make([]*DatabaseDiff, 0, len(currentDBs)+len(targetDBs))

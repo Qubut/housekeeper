@@ -2,6 +2,8 @@ package schema
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -114,6 +116,17 @@ func compareRoles(current, target *parser.SQL) []*RoleDiff {
 	// Extract grant information
 	currentGrants := extractGrantInfo(current)
 	targetGrants := extractGrantInfo(target)
+
+	// Reconcile ON CLUSTER between live state and source intent for both roles
+	// and grants (see inferSchemaClusterFromStrings for the policy).
+	ReconcileClusters(maps.Values(currentRoles), maps.Values(targetRoles),
+		func(r *RoleInfo) string { return r.Cluster },
+		func(r *RoleInfo, c string) { r.Cluster = c },
+	)
+	ReconcileClusters(slices.Values(currentGrants), slices.Values(targetGrants),
+		func(g *GrantInfo) string { return g.Cluster },
+		func(g *GrantInfo, c string) { g.Cluster = c },
+	)
 
 	// Pre-allocate diffs slice with estimated capacity
 	diffs := make([]*RoleDiff, 0, len(currentRoles)+len(targetRoles)+len(currentGrants)+len(targetGrants))
