@@ -1,11 +1,65 @@
 package schema
 
 import (
+	"iter"
 	"strings"
 
+	A "github.com/IBM/fp-go/v2/array"
+	O "github.com/IBM/fp-go/v2/option"
 	"github.com/pseudomuto/housekeeper/pkg/compare"
 	"github.com/pseudomuto/housekeeper/pkg/parser"
+	"github.com/pseudomuto/housekeeper/pkg/utils"
 )
+
+// inferSchemaClusterFromStrings picks the authoritative ON CLUSTER name:
+// any server macro wins; otherwise a unanimous plain name; otherwise "".
+func inferSchemaClusterFromStrings(clusters []string) string {
+	return O.MonadGetOrElse(
+		O.MonadAlt(
+			A.FindFirst(utils.IsClickHouseMacro)(clusters),
+			func() O.Option[string] {
+				return O.MonadChain(A.Head(clusters), func(first string) O.Option[string] {
+					if A.Any(func(c string) bool { return c != first })(clusters) {
+						return O.None[string]()
+					}
+					return O.Some(first)
+				})
+			},
+		),
+		func() string { return "" },
+	)
+}
+
+// ReconcileClusters rewrites every non-empty ON CLUSTER value in `current` to the
+// name inferred from `target` (see inferSchemaClusterFromStrings), so live-DB
+// state extracted with macros expanded compares equal to source schema written
+// with the macros intact. No-op when target has no consistent cluster.
+func ReconcileClusters[T any](current, target iter.Seq[T], get func(T) string, set func(T, string)) {
+	var clusters []string
+	for item := range target {
+		if c := get(item); c != "" {
+			clusters = append(clusters, c)
+		}
+	}
+	sc := inferSchemaClusterFromStrings(clusters)
+	if sc == "" {
+		return
+	}
+	for item := range current {
+		if get(item) != "" {
+			set(item, sc)
+		}
+	}
+}
+
+// normalizeDefaultDatabase strips ClickHouse's implicit "default" database name
+// so qualified ("default.foo") and unqualified ("foo") references share one key.
+func normalizeDefaultDatabase(db string) string {
+	if normalizeIdentifier(db) == "default" {
+		return ""
+	}
+	return normalizeIdentifier(db)
+}
 
 // removeQuotes removes surrounding single quotes from a string
 func removeQuotes(s string) string {
@@ -44,7 +98,7 @@ func getViewTableTargetValue(target *parser.ViewTableTarget) string {
 		result += strings.Join(args, ", ") + ")"
 		return result
 	} else if target.Table != nil {
-		if target.Database != nil {
+		if target.Database != nil && normalizeDefaultDatabase(*target.Database) != "" {
 			return *target.Database + "." + *target.Table
 		}
 		return *target.Table

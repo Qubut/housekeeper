@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/pseudomuto/housekeeper/pkg/parser"
@@ -83,6 +84,13 @@ func compareFunctions(current, target *parser.SQL) []*FunctionDiff {
 	// Extract function information from both SQL structures
 	currentMap := extractFunctionInfoAsMap(current)
 	targetMap := extractFunctionInfoAsMap(target)
+
+	// Reconcile ON CLUSTER between live state and source intent (see
+	// inferSchemaClusterFromStrings for the policy).
+	ReconcileClusters(maps.Values(currentMap), maps.Values(targetMap),
+		func(f *FunctionInfo) string { return f.Cluster },
+		func(f *FunctionInfo, c string) { f.Cluster = c },
+	)
 
 	// Pre-allocate diffs slice with estimated capacity
 	diffs := make([]*FunctionDiff, 0, len(currentMap)+len(targetMap))

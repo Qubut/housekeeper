@@ -2,11 +2,10 @@ package schema
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
-	A "github.com/IBM/fp-go/v2/array"
-	O "github.com/IBM/fp-go/v2/option"
 	"github.com/pseudomuto/housekeeper/pkg/compare"
 	"github.com/pseudomuto/housekeeper/pkg/consts"
 	"github.com/pseudomuto/housekeeper/pkg/parser"
@@ -204,13 +203,10 @@ func compareTables(current, target *parser.SQL) ([]*TableDiff, error) {
 	// SHOW CREATE TABLE, so the current state always holds the concrete name.
 	// Without this step, ALTER/DROP/RENAME migrations would hard-code the
 	// cluster name instead of preserving the portable macro syntax.
-	if sc := inferSchemaCluster(targetTables); sc != "" {
-		for _, t := range currentTables {
-			if t.Cluster != "" {
-				t.Cluster = sc
-			}
-		}
-	}
+	ReconcileClusters(maps.Values(currentTables), maps.Values(targetTables),
+		func(t *TableInfo) string { return t.Cluster },
+		func(t *TableInfo, c string) { t.Cluster = c },
+	)
 
 	// Pre-allocate diffs slice with estimated capacity
 	diffs := make([]*TableDiff, 0, len(currentTables)+len(targetTables))
@@ -575,38 +571,6 @@ func findRenamedTable(targetTable *TableInfo, currentTables, targetTables map[st
 		}
 	}
 	return ""
-}
-
-// inferSchemaCluster returns the authoritative cluster name from the target schema.
-// Priority:
-//  1. Any server macro (e.g. '{cluster}') — portable across clusters.
-//  2. Unanimous plain name — all clustered tables agree on the same value.
-//  3. "" — mixed names or no clustered tables; conservative, avoids incorrect rewrites.
-//
-// The result is applied to live-DB tables before diff generation so that ALTER / DROP /
-// RENAME migrations emit the same cluster syntax as the desired schema instead of the
-// concrete name ClickHouse reports after macro expansion.
-func inferSchemaCluster(tables map[string]*TableInfo) string {
-	clusters := make([]string, 0, len(tables))
-	for _, t := range tables {
-		if t.Cluster != "" {
-			clusters = append(clusters, t.Cluster)
-		}
-	}
-	return O.MonadGetOrElse(
-		O.MonadAlt(
-			A.FindFirst(utils.IsClickHouseMacro)(clusters),
-			func() O.Option[string] {
-				return O.MonadChain(A.Head(clusters), func(first string) O.Option[string] {
-					if A.Any(func(c string) bool { return c != first })(clusters) {
-						return O.None[string]()
-					}
-					return O.Some(first)
-				})
-			},
-		),
-		func() string { return "" },
-	)
 }
 
 // tablesEqualIgnoringName compares two tables for equality ignoring name and database
