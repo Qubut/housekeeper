@@ -29,7 +29,7 @@ type ContainerAddress struct {
 // address resolution strategies:
 //
 //   - Docker publishes each container port to a randomly-assigned host port on localhost.
-//     The correct address is localhost:<randomHostPort>.
+//     The correct address is 127.0.0.1:<randomHostPort>.
 //
 //   - Podman rootless does not reliably forward ports to localhost through the compat API.
 //     The correct address is the container's direct bridge IP + the container port.
@@ -46,7 +46,7 @@ type AddressResolver interface {
 // DockerAddressResolver is the default AddressResolver for standard Docker environments.
 //
 // It reads the randomly-assigned host-port bindings that Docker creates when a container
-// is started with published ports and returns localhost:<hostPort> for each service.
+// is started with published ports and returns 127.0.0.1:<hostPort> for each service.
 // This is the correct strategy for Docker Desktop, Docker Engine, and any runtime whose
 // compat API properly sets up port-forwarding to the loopback interface.
 type DockerAddressResolver struct{}
@@ -81,7 +81,7 @@ func (r *DockerAddressResolver) Resolve(ctx context.Context, client DockerClient
 	}
 
 	return &ContainerAddress{
-		Host:       "localhost",
+		Host:       "127.0.0.1",
 		NativePort: nativeMapped,
 		HTTPPort:   httpMapped,
 	}, nil

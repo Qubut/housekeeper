@@ -279,11 +279,8 @@ func dictionaryStatementsEqual(current, target *parser.CreateDictionaryStmt) boo
 		return current == target
 	}
 
-	// Compare basic flags
-	if current.OrReplace != target.OrReplace ||
-		!stringPtrEqual(current.IfNotExists, target.IfNotExists) {
-		return false
-	}
+	// Ignore OrReplace / IF NOT EXISTS — creation modifiers only; ClickHouse dumps
+	// never echo them, so comparing them causes perpetual CREATE OR REPLACE churn.
 
 	// Compare columns
 	if !dictionaryColumnsEqual(current.Columns, target.Columns) {
@@ -329,13 +326,23 @@ func stringPtrEqual(a, b *string) bool {
 	return *a == *b
 }
 
+func dictionaryDataTypesEqual(a, b *parser.DataType) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Equal(b)
+}
+
 func dictionaryColumnsEqual(a, b []*parser.DictionaryColumn) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i, colA := range a {
 		colB := b[i]
-		if colA.Name != colB.Name || colA.Type != colB.Type {
+		if colA.Name != colB.Name || !dictionaryDataTypesEqual(colA.Type, colB.Type) {
 			return false
 		}
 
@@ -784,7 +791,7 @@ func buildDictionaryColumns(parts []string, stmt *parser.CreateDictionaryStmt) [
 		parts = append(parts, "(")
 		var columnParts []string
 		for _, col := range stmt.Columns {
-			columnStr := col.Name + " " + col.Type
+			columnStr := col.Name + " " + col.Type.String()
 
 			// Add DEFAULT or EXPRESSION if present
 			if col.Default != nil {

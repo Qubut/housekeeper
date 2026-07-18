@@ -183,8 +183,8 @@ func (f *Formatter) formatDictionaryColumn(col *parser.DictionaryColumn, alignWi
 	}
 	parts = append(parts, name)
 
-	// Data type
-	parts = append(parts, col.Type)
+	// Data type (supports Nullable/Array/etc.)
+	parts = append(parts, f.formatDataType(col.Type))
 
 	// Default value
 	if col.Default != nil {

@@ -950,15 +950,18 @@ func handleTableExists(tableName string, currentTable, targetTable *TableInfo) (
 //     Any modification to tables using these engines cannot be performed via ALTER and requires dropping and recreating the table.
 //   - Certain engine changes, such as ReplicatedMergeTree parameter changes (e.g., changing the replica path, zookeeper path, or other engine settings),
 //     cannot be altered in-place and require the table to be dropped and recreated.
+//   - ORDER BY / PARTITION BY / PRIMARY KEY / SAMPLE BY changes (or dropping columns that participate in them):
+//     ClickHouse rejects ALTER DROP of sorting-key columns; recreate the table instead.
 //
 // This function checks for these conditions and returns true if DROP+CREATE is necessary.
 func shouldUseDropCreate(currentTable, targetTable *TableInfo) bool {
-	// For integration engines or engine changes that require DROP+CREATE, use DROP+CREATE strategy
-	// Integration engines are read-only from ClickHouse perspective and modifications require recreating the table
-	// ReplicatedMergeTree parameter changes also require DROP+CREATE as they cannot be altered
 	return isIntegrationEngine(currentTable.Engine) ||
 		isIntegrationEngine(targetTable.Engine) ||
-		requiresDropCreate(currentTable.Engine, targetTable.Engine)
+		requiresDropCreate(currentTable.Engine, targetTable.Engine) ||
+		!equalAST(currentTable.OrderBy, targetTable.OrderBy) ||
+		!equalAST(currentTable.PartitionBy, targetTable.PartitionBy) ||
+		!equalAST(currentTable.PrimaryKey, targetTable.PrimaryKey) ||
+		!equalAST(currentTable.SampleBy, targetTable.SampleBy)
 }
 
 // createRenameDiff creates a TableDiff for rename operation
@@ -994,8 +997,14 @@ func createCreateDiff(tableName string, targetTable *TableInfo) *TableDiff {
 // createDropCreateDiff creates a TableDiff for DROP+CREATE operation
 func createDropCreateDiff(tableName string, currentTable, targetTable *TableInfo) *TableDiff {
 	reason := "integration engine"
-	if requiresDropCreate(currentTable.Engine, targetTable.Engine) {
+	switch {
+	case requiresDropCreate(currentTable.Engine, targetTable.Engine):
 		reason = "engine parameter change"
+	case !equalAST(currentTable.OrderBy, targetTable.OrderBy) ||
+		!equalAST(currentTable.PartitionBy, targetTable.PartitionBy) ||
+		!equalAST(currentTable.PrimaryKey, targetTable.PrimaryKey) ||
+		!equalAST(currentTable.SampleBy, targetTable.SampleBy):
+		reason = "key/partition clause change"
 	}
 
 	return &TableDiff{

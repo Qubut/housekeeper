@@ -2,7 +2,6 @@ package podman_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -13,21 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// skipIfPodmanSocket skips the test when a Podman socket exists on the filesystem.
-// The socket probe in detectResolver() has higher priority than the default Docker
-// fallback, so tests that expect DockerAddressResolver would fail on Podman hosts.
-func skipIfPodmanSocket(t *testing.T) {
+// skipIfRootfulPodmanSocket skips when a rootful Podman socket exists.
+// Rootful sockets still select PodmanAddressResolver ahead of the Docker default.
+func skipIfRootfulPodmanSocket(t *testing.T) {
 	t.Helper()
-	candidates := []string{
-		fmt.Sprintf("/run/user/%d/podman/podman.sock", os.Getuid()),
-		"/run/podman/podman.sock",
-	}
-	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
-		candidates = append(candidates, xdg+"/podman/podman.sock")
-	}
-	for _, p := range candidates {
+	for _, p := range []string{"/run/podman/podman.sock", "/var/run/podman/podman.sock"} {
 		if _, err := os.Stat(p); err == nil {
-			t.Skipf("Podman socket found at %s — socket probe supersedes DOCKER_HOST fallback on this host", p)
+			t.Skipf("rootful Podman socket at %s — probe supersedes Docker DOCKER_HOST fallback", p)
 		}
 	}
 }
@@ -81,7 +72,7 @@ func TestAutoDetectResolver_PodmanRuntime_UsesBridgeIP(t *testing.T) {
 
 func TestAutoDetectResolver_DockerRuntime_UsesPortBindings(t *testing.T) {
 	// HOUSEKEEPER_RUNTIME=docker must select DockerAddressResolver, which reads
-	// mapped host ports and returns localhost:<hostPort>.
+	// mapped host ports and returns 127.0.0.1:<hostPort> (IPv4-only rootless publish).
 	t.Setenv("HOUSEKEEPER_RUNTIME", "docker")
 	t.Setenv("CONTAINER_HOST", "")
 	t.Setenv("DOCKER_HOST", "")
@@ -96,20 +87,21 @@ func TestAutoDetectResolver_DockerRuntime_UsesPortBindings(t *testing.T) {
 	addr, err := resolver.Resolve(context.Background(), cli, "ch-test")
 
 	require.NoError(t, err)
-	require.Equal(t, "localhost", addr.Host)
+	require.Equal(t, "127.0.0.1", addr.Host)
 	require.Equal(t, 54321, addr.NativePort)
 	require.Equal(t, 54322, addr.HTTPPort)
 }
 
-func TestAutoDetectResolver_ContainerHostPodmanSocket_UsesBridgeIP(t *testing.T) {
-	// CONTAINER_HOST pointing to a Podman socket activates the Podman resolver.
+func TestAutoDetectResolver_RootlessPodmanSocket_UsesPortBindings(t *testing.T) {
+	// Rootless DOCKER_HOST (/run/user/…) must NOT activate PodmanAddressResolver —
+	// pasta has no host-reachable bridge IP; use published localhost ports.
 	t.Setenv("HOUSEKEEPER_RUNTIME", "")
-	t.Setenv("CONTAINER_HOST", "unix:///run/user/1000/podman/podman.sock")
-	t.Setenv("DOCKER_HOST", "")
+	t.Setenv("CONTAINER_HOST", "")
+	t.Setenv("DOCKER_HOST", "unix:///run/user/1000/podman/podman.sock")
 
 	cli := &mockDockerClient{
 		inspectFn: func(_ context.Context, _ string) (container.InspectResponse, error) {
-			return podmanInspect("10.89.0.2"), nil
+			return dockerInspect("40173", "34561"), nil
 		},
 	}
 
@@ -117,14 +109,16 @@ func TestAutoDetectResolver_ContainerHostPodmanSocket_UsesBridgeIP(t *testing.T)
 	addr, err := resolver.Resolve(context.Background(), cli, "ch-test")
 
 	require.NoError(t, err)
-	require.Equal(t, "10.89.0.2", addr.Host)
+	require.Equal(t, "127.0.0.1", addr.Host)
+	require.Equal(t, 40173, addr.NativePort)
+	require.Equal(t, 34561, addr.HTTPPort)
 }
 
-func TestAutoDetectResolver_DockerHostPodmanSocket_UsesBridgeIP(t *testing.T) {
-	// DOCKER_HOST containing "podman" activates the Podman resolver.
+func TestAutoDetectResolver_RootfulDockerHostPodmanSocket_UsesBridgeIP(t *testing.T) {
+	// Rootful DOCKER_HOST (/run/podman/…) activates the Podman bridge-IP resolver.
 	t.Setenv("HOUSEKEEPER_RUNTIME", "")
 	t.Setenv("CONTAINER_HOST", "")
-	t.Setenv("DOCKER_HOST", "unix:///run/user/1000/podman/podman.sock")
+	t.Setenv("DOCKER_HOST", "unix:///run/podman/podman.sock")
 
 	cli := &mockDockerClient{
 		inspectFn: func(_ context.Context, _ string) (container.InspectResponse, error) {
@@ -141,9 +135,8 @@ func TestAutoDetectResolver_DockerHostPodmanSocket_UsesBridgeIP(t *testing.T) {
 
 func TestAutoDetectResolver_DockerSocket_UsesPortBindings(t *testing.T) {
 	// A Docker socket URI in DOCKER_HOST does NOT activate Podman — falls back to Docker.
-	// Skip on hosts where a Podman socket exists: the socket probe fires before the default
-	// fallback and would select PodmanAddressResolver regardless of DOCKER_HOST.
-	skipIfPodmanSocket(t)
+	// Skip only when a *rootful* Podman socket exists (rootless no longer selects Podman).
+	skipIfRootfulPodmanSocket(t)
 	t.Setenv("HOUSEKEEPER_RUNTIME", "")
 	t.Setenv("CONTAINER_HOST", "")
 	t.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
@@ -158,7 +151,7 @@ func TestAutoDetectResolver_DockerSocket_UsesPortBindings(t *testing.T) {
 	addr, err := resolver.Resolve(context.Background(), cli, "ch-test")
 
 	require.NoError(t, err)
-	require.Equal(t, "localhost", addr.Host)
+	require.Equal(t, "127.0.0.1", addr.Host)
 	require.Equal(t, 32768, addr.NativePort)
 }
 

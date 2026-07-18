@@ -48,7 +48,7 @@ type (
 	// DictionaryColumn represents a column definition in dictionary
 	DictionaryColumn struct {
 		Name       string                   `parser:"@(Ident | BacktickIdent)"`
-		Type       string                   `parser:"@(Ident | BacktickIdent)"`
+		Type       *DataType                `parser:"@@"`
 		Default    *DictionaryColumnDefault `parser:"@@?"`
 		Attributes []*DictionaryColumnAttr  `parser:"@@*"`
 		Comma      *string                  `parser:"@','?"`
@@ -125,9 +125,11 @@ type (
 		SimpleParam *SimpleParameter   `parser:"| (@@ ','?)"`
 	}
 
-	// SimpleParameter represents name-value parameters
+	// SimpleParameter represents name-value parameters.
+	// NAME/TABLE/WHERE are reserved tokens elsewhere in the grammar and must be
+	// listed explicitly so SOURCE(POSTGRESQL(NAME … TABLE … where …)) parses.
 	SimpleParameter struct {
-		Name       string     `parser:"@(Ident | BacktickIdent)"`
+		Name       string     `parser:"@(Ident | BacktickIdent | 'NAME' | 'TABLE' | 'WHERE' | 'USER' | 'PASSWORD' | 'DB' | 'PORT' | 'HOST')"`
 		Expression Expression `parser:"@@"`
 	}
 
