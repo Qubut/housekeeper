@@ -147,8 +147,12 @@ func normalizeDataTypes(sql *SQL) {
 			}
 		}
 
-		// Dictionary columns use string type names, not DataType structs
-		// No normalization needed for dictionaries
+		// Dictionary columns use DataType (Nullable/Array/etc.)
+		if stmt.CreateDictionary != nil {
+			for _, col := range stmt.CreateDictionary.Columns {
+				NormalizeDataType(col.Type)
+			}
+		}
 	}
 }
 

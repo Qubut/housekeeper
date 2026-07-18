@@ -954,7 +954,80 @@ func (p *PrimaryExpression) Equal(other *PrimaryExpression) bool {
 		return false
 	}
 
-	// For other types, do basic comparison
+	// Check Tuple — ORDER BY (a, b) vs (c, d) must not compare equal
+	if (p.Tuple != nil) != (other.Tuple != nil) {
+		return false
+	}
+	if p.Tuple != nil && !p.Tuple.Equal(other.Tuple) {
+		return false
+	}
+
+	// Check Array
+	if (p.Array != nil) != (other.Array != nil) {
+		return false
+	}
+	if p.Array != nil && !p.Array.Equal(other.Array) {
+		return false
+	}
+
+	// Check Cast / Interval / Extract via string form (structural equality)
+	if (p.Cast != nil) != (other.Cast != nil) {
+		return false
+	}
+	if p.Cast != nil && p.Cast.String() != other.Cast.String() {
+		return false
+	}
+	if (p.Interval != nil) != (other.Interval != nil) {
+		return false
+	}
+	if p.Interval != nil && p.Interval.String() != other.Interval.String() {
+		return false
+	}
+	if (p.Extract != nil) != (other.Extract != nil) {
+		return false
+	}
+	if p.Extract != nil && p.Extract.String() != other.Extract.String() {
+		return false
+	}
+
+	return true
+}
+
+// Equal compares two TupleExpression values element-wise.
+func (t *TupleExpression) Equal(other *TupleExpression) bool {
+	if t == nil && other == nil {
+		return true
+	}
+	if t == nil || other == nil {
+		return false
+	}
+	if len(t.Elements) != len(other.Elements) {
+		return false
+	}
+	for i := range t.Elements {
+		if !t.Elements[i].Equal(&other.Elements[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// Equal compares two ArrayExpression values element-wise.
+func (a *ArrayExpression) Equal(other *ArrayExpression) bool {
+	if a == nil && other == nil {
+		return true
+	}
+	if a == nil || other == nil {
+		return false
+	}
+	if len(a.Elements) != len(other.Elements) {
+		return false
+	}
+	for i := range a.Elements {
+		if !a.Elements[i].Equal(&other.Elements[i]) {
+			return false
+		}
+	}
 	return true
 }
 

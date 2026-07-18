@@ -2,7 +2,6 @@ package podman
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -18,10 +17,11 @@ const housekeeperRuntimeEnv = "HOUSEKEEPER_RUNTIME"
 //
 // Detection order (highest to lowest priority):
 //  1. HOUSEKEEPER_RUNTIME=podman|docker — explicit override, always wins.
-//  2. CONTAINER_HOST env var — Podman sets this to its socket path.
-//  3. DOCKER_HOST env var — if it contains "podman", use Podman resolver.
-//  4. Well-known Podman socket paths on the filesystem.
-//  5. Default: Docker resolver.
+//  2. CONTAINER_HOST / DOCKER_HOST — if URI contains "podman":
+//     - rootless (/run/user/…) → DockerAddressResolver (localhost + published ports)
+//     - rootful → PodmanAddressResolver (bridge IP)
+//  3. Rootful Podman socket on disk → PodmanAddressResolver.
+//  4. Default: DockerAddressResolver.
 type AutoDetectResolver struct {
 	once     sync.Once
 	resolved docker.AddressResolver
@@ -41,11 +41,14 @@ func (r *AutoDetectResolver) Resolve(ctx context.Context, client docker.DockerCl
 func detectResolver() docker.AddressResolver {
 	return F.Pipe4(
 		resolverFromRuntime(),
-		O.Alt(envToPodmanResolver("CONTAINER_HOST")),
-		O.Alt(envToPodmanResolver("DOCKER_HOST")),
+		O.Alt(envToAddressResolver("CONTAINER_HOST")),
+		O.Alt(envToAddressResolver("DOCKER_HOST")),
 		O.Alt(func() O.Option[docker.AddressResolver] {
+			// Only rootful Podman sockets need bridge-IP resolution. A rootless
+			// user socket alone must fall through to DockerAddressResolver
+			// (localhost + published ports) — pasta has no host-reachable bridge IP.
 			return O.MonadMap(
-				O.FromNonZero[bool]()(podmanSocketExists()),
+				O.FromNonZero[bool]()(rootfulPodmanSocketExists()),
 				F.Constant1[bool, docker.AddressResolver](&PodmanAddressResolver{}),
 			)
 		}),
@@ -64,28 +67,33 @@ func resolverFromRuntime() O.Option[docker.AddressResolver] {
 	}
 }
 
-// envToPodmanResolver returns a lazy probe for envVar: Some(PodmanAddressResolver) when
-// the value is a non-empty URI containing "podman", None otherwise.
-func envToPodmanResolver(envVar string) func() O.Option[docker.AddressResolver] {
+// envToAddressResolver maps a container-socket env var to the correct AddressResolver.
+// Rootless Podman (pasta) exposes published ports on 127.0.0.1 but leaves bridge
+// NetworkSettings.IPAddress empty/unreachable — DockerAddressResolver is correct there.
+// Rootful Podman needs PodmanAddressResolver (bridge IP).
+func envToAddressResolver(envVar string) func() O.Option[docker.AddressResolver] {
 	return func() O.Option[docker.AddressResolver] {
-		return O.MonadMap(
-			O.FromPredicate(func(s string) bool {
-				return s != "" && strings.Contains(strings.ToLower(s), "podman")
-			})(os.Getenv(envVar)),
-			func(_ string) docker.AddressResolver { return &PodmanAddressResolver{} },
-		)
+		s := os.Getenv(envVar)
+		if s == "" {
+			return O.None[docker.AddressResolver]()
+		}
+		lower := strings.ToLower(s)
+		if !strings.Contains(lower, "podman") {
+			return O.None[docker.AddressResolver]()
+		}
+		if strings.Contains(lower, "/run/user/") {
+			return O.Some[docker.AddressResolver](&docker.DockerAddressResolver{})
+		}
+		return O.Some[docker.AddressResolver](&PodmanAddressResolver{})
 	}
 }
 
-// podmanSocketExists probes the well-known rootful, rootless, and XDG_RUNTIME_DIR
-// socket paths for a live Podman socket.
-func podmanSocketExists() bool {
+// rootfulPodmanSocketExists probes the system Podman socket only.
+// Rootless paths under /run/user/… are intentionally excluded (see detectResolver).
+func rootfulPodmanSocketExists() bool {
 	candidates := []string{
-		fmt.Sprintf("/run/user/%d/podman/podman.sock", os.Getuid()),
 		"/run/podman/podman.sock",
-	}
-	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
-		candidates = append(candidates, xdg+"/podman/podman.sock")
+		"/var/run/podman/podman.sock",
 	}
 	for _, path := range candidates {
 		if _, err := os.Stat(path); err == nil {

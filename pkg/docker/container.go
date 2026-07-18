@@ -3,7 +3,9 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -73,7 +75,7 @@ func (c *ClickHouseContainer) containerName() string {
 }
 
 // Start pulls the image, cleans up any stale container with the same name, then starts a
-// fresh container and waits for ClickHouse to accept TCP connections.
+// fresh container and waits for ClickHouse HTTP readiness (SELECT 1).
 //
 // Stale cleanup prevents "name already in use" failures when a previous run was interrupted
 // before Stop was called.
@@ -93,7 +95,14 @@ func (c *ClickHouseContainer) Start(ctx context.Context) error {
 	containerOpts := ContainerOptions{
 		Name:  containerName,
 		Image: fmt.Sprintf("clickhouse/clickhouse-server:%s-alpine", version),
-		Env:   map[string]string{"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1"},
+		Env: map[string]string{
+			"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1",
+			// Empty password + explicit user keeps passwordless default, but enables
+			// network clients (rootless Podman port-forwards are not loopback-inside).
+			"CLICKHOUSE_USER":                     "default",
+			"CLICKHOUSE_PASSWORD":                 "",
+			"CLICKHOUSE_DB":                       "default",
+		},
 		Ports: map[int]int{
 			-1: DefaultClickHousePort,
 			-2: DefaultClickHouseHTTPPort,
@@ -124,23 +133,34 @@ func (c *ClickHouseContainer) Start(ctx context.Context) error {
 	))
 }
 
-// waitForReady polls the ClickHouse native port via TCP until it accepts connections
-// or readinessDeadline elapses. The address is resolved through the injected
-// AddressResolver so Podman bridge IPs work without special-casing.
+// waitForReady polls ClickHouse HTTP until SELECT 1 succeeds (or readinessDeadline).
+// TCP accept alone is insufficient: rootless Podman publishes the port before the
+// native protocol is up, which yields "connection reset by peer" on early Ping.
 func (c *ClickHouseContainer) waitForReady(ctx context.Context) error {
 	addr, err := c.addressResolver.Resolve(ctx, c.engine.client, c.containerName())
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve container address for readiness check")
 	}
 
-	target := net.JoinHostPort(addr.Host, fmt.Sprintf("%d", addr.NativePort))
+	httpURL := fmt.Sprintf("http://%s/?query=SELECT%%201", net.JoinHostPort(addr.Host, fmt.Sprintf("%d", addr.HTTPPort)))
+	nativeTarget := net.JoinHostPort(addr.Host, fmt.Sprintf("%d", addr.NativePort))
 	deadline := time.Now().Add(readinessDeadline)
+	client := &http.Client{Timeout: readinessDialTimeout}
 
 	for time.Now().Before(deadline) {
-		conn, dialErr := net.DialTimeout("tcp", target, readinessDialTimeout)
-		if dialErr == nil {
-			_ = conn.Close()
-			return nil
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, httpURL, nil)
+		if reqErr == nil {
+			resp, doErr := client.Do(req)
+			if doErr == nil {
+				body, _ := io.ReadAll(io.LimitReader(resp.Body, 64))
+				_ = resp.Body.Close()
+				if resp.StatusCode == http.StatusOK && len(body) > 0 {
+					return nil
+				}
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -149,7 +169,7 @@ func (c *ClickHouseContainer) waitForReady(ctx context.Context) error {
 		}
 	}
 
-	return errors.Errorf("ClickHouse at %s failed to become ready within %s", target, readinessDeadline)
+	return errors.Errorf("ClickHouse at %s (HTTP %s) failed to become ready within %s", nativeTarget, httpURL, readinessDeadline)
 }
 
 // Stop stops and removes the container.
