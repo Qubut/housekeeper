@@ -49,6 +49,14 @@ type (
 		OrReplace      bool                   // True if created with OR REPLACE
 		Query          string                 // Query string for validation compatibility
 		Statement      *parser.CreateViewStmt // Full parsed CREATE VIEW statement for deep comparison
+		// Functions is the lowercase-keyed SQL user-defined function registry
+		// from the target schema, used to inline UDF calls in AsSelect before
+		// comparison (see udf_inline.go for why this is required: ClickHouse
+		// itself inlines UDF calls into a view's stored create_table_query,
+		// so the un-inlined source DDL never structurally matches live state
+		// without this expansion). nil for views where inlining wasn't set up
+		// (comparison then falls back to comparing as-declared).
+		Functions map[string]*FunctionInfo
 	}
 )
 
@@ -93,6 +101,20 @@ func compareViews(current, target *parser.SQL) ([]*ViewDiff, error) { // nolint:
 	// Extract views from both schemas
 	currentViews := extractViewsFromSQL(current)
 	targetViews := extractViewsFromSQL(target)
+
+	// Attach the target's function registry to every view on both sides so
+	// comparison can inline UDF calls before diffing (see udf_inline.go).
+	// Sourced from target only: current's AsSelect already reflects
+	// ClickHouse's own inlined form and has no named UDF calls left to
+	// resolve, so inlining it is a no-op regardless of which side's registry
+	// is used.
+	functions := lowercaseFunctionKeys(extractFunctionInfoAsMap(target))
+	for _, v := range currentViews {
+		v.Functions = functions
+	}
+	for _, v := range targetViews {
+		v.Functions = functions
+	}
 
 	// Mirror the table-side cluster reconciliation: rewrite live-DB cluster names
 	// to the source-side cluster (typically a server macro like '{cluster}'),
@@ -355,7 +377,7 @@ func viewsAreEqual(current, target *ViewInfo) bool {
 
 	// Compare the full statements for deep equality
 	// This includes comparing the SELECT clause and all other properties
-	result := viewStatementsAreEqual(current.Statement, target.Statement)
+	result := viewStatementsAreEqual(current.Statement, target.Statement, target.Functions)
 
 	// Debug output disabled for now
 	// if !result && current.Statement != nil && target.Statement != nil {
@@ -379,12 +401,20 @@ func viewsHaveSameProperties(view1, view2 *ViewInfo) bool {
 		return false
 	}
 
-	// Compare statements ignoring names
-	return viewStatementsHaveSameProperties(view1.Statement, view2.Statement)
+	// Compare statements ignoring names. Both sides carry the same
+	// target-derived registry (see compareViews), so either is fine to use.
+	functions := view1.Functions
+	if functions == nil {
+		functions = view2.Functions
+	}
+	return viewStatementsHaveSameProperties(view1.Statement, view2.Statement, functions)
 }
 
-// viewStatementsAreEqual compares two CREATE VIEW statements for complete equality
-func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt) bool {
+// viewStatementsAreEqual compares two CREATE VIEW statements for complete
+// equality. `functions` (lowercase-keyed) is used to inline SQL
+// user-defined function calls in stmt2's AsSelect before comparison — see
+// udf_inline.go.
+func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt, functions map[string]*FunctionInfo) bool {
 	// Note: IfNotExists is ignored because it's a creation-time directive
 	// that's not preserved in ClickHouse's stored object definitions
 
@@ -405,7 +435,7 @@ func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt) bool {
 	_ = stmt2.Populate
 
 	// Compare SELECT clauses with formatting tolerance
-	if !selectClausesAreEqualWithTolerance(stmt1.AsSelect, stmt2.AsSelect) {
+	if !selectClausesAreEqualWithTolerance(stmt1.AsSelect, stmt2.AsSelect, functions) {
 		return false
 	}
 
@@ -413,10 +443,10 @@ func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt) bool {
 }
 
 // viewStatementsHaveSameProperties compares statements ignoring names (for rename detection)
-func viewStatementsHaveSameProperties(stmt1, stmt2 *parser.CreateViewStmt) bool {
+func viewStatementsHaveSameProperties(stmt1, stmt2 *parser.CreateViewStmt, functions map[string]*FunctionInfo) bool {
 	// For rename detection, we compare everything except the view name
 	// This uses the same logic as viewStatementsAreEqual, which ignores creation-time directives
-	return viewStatementsAreEqual(stmt1, stmt2)
+	return viewStatementsAreEqual(stmt1, stmt2, functions)
 }
 
 // engineClausesAreEqualWithTolerance compares engine clauses with ClickHouse limitations in mind
@@ -560,13 +590,20 @@ func viewEnginesEqual(engine1, engine2 *parser.ViewEngine) bool {
 }
 
 // selectClausesAreEqualWithTolerance compares SELECT clauses with formatting tolerance
-func selectClausesAreEqualWithTolerance(select1, select2 *parser.SelectStatement) bool {
+func selectClausesAreEqualWithTolerance(select1, select2 *parser.SelectStatement, functions map[string]*FunctionInfo) bool {
 	if select1 == nil && select2 == nil {
 		return true
 	}
 	if select1 == nil || select2 == nil {
 		return false
 	}
+
+	// select1 is the live/current side (already reflects ClickHouse's own
+	// UDF inlining, if any) and select2 is the source/target side (still
+	// spells out UDF calls by name). Inline select2 against the target's own
+	// function registry so both sides describe the same expanded form before
+	// any AST/normalized comparison runs — see udf_inline.go.
+	select2 = inlineFunctionCallsInSelect(select2, functions)
 
 	// First try exact AST comparison
 	if selectStatementsAreEqualAST(select1, select2) {
@@ -578,31 +615,72 @@ func selectClausesAreEqualWithTolerance(select1, select2 *parser.SelectStatement
 	return selectStatementsAreEqualNormalized(select1, select2)
 }
 
-// selectStatementsAreEqualNormalized compares SELECT statements with tolerance for ClickHouse formatting
+// selectStatementsAreEqualNormalized compares SELECT projections by normalized expression strings.
+// Catches semantic renames (market_hash_name → item_id) without looping on ClickHouse SHOW CREATE formatting.
 func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bool {
-	// For now, implement a simple fallback strategy:
-	// If we have the same number of clauses and they're structurally similar, consider them equal
-	// This is a conservative approach that favors avoiding unnecessary recreations
-
-	// Check if basic structure is the same
 	if (stmt1.With == nil) != (stmt2.With == nil) {
-		return false // Different WITH clause presence
+		return false
 	}
 	if len(stmt1.Columns) != len(stmt2.Columns) {
-		return false // Different number of columns
+		return false
 	}
 	if (stmt1.From == nil) != (stmt2.From == nil) {
-		return false // Different FROM clause presence
+		return false
+	}
+	if (stmt1.Where == nil) != (stmt2.Where == nil) {
+		return false
+	}
+	if (stmt1.GroupBy == nil) != (stmt2.GroupBy == nil) {
+		return false
+	}
+	if (stmt1.Having == nil) != (stmt2.Having == nil) {
+		return false
 	}
 	if (stmt1.OrderBy == nil) != (stmt2.OrderBy == nil) {
-		return false // Different ORDER BY presence
+		return false
+	}
+	if (stmt1.Limit == nil) != (stmt2.Limit == nil) {
+		return false
 	}
 
-	// If we get here, the basic structure is similar
-	// For ClickHouse formatting tolerance, we'll be optimistic and assume they're equivalent
-	// This is a temporary measure to address the recreation issue
-	// TODO: Implement proper normalization comparison once format package has public methods
+	for i := range stmt1.Columns {
+		c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
+		if (c1.Star != nil) != (c2.Star != nil) {
+			return false
+		}
+		if normalizeSelectExpr(c1.Expression) != normalizeSelectExpr(c2.Expression) {
+			return false
+		}
+		if normalizeIdent(c1.Alias) != normalizeIdent(c2.Alias) {
+			return false
+		}
+	}
+
+	if !fromClausesAreEqual(stmt1.From, stmt2.From) {
+		return false
+	}
+	if stmt1.Where != nil && stmt2.Where != nil {
+		if normalizeSelectExpr(&stmt1.Where.Condition) != normalizeSelectExpr(&stmt2.Where.Condition) {
+			return false
+		}
+	}
 	return true
+}
+
+func normalizeSelectExpr(expr *parser.Expression) string {
+	if expr == nil {
+		return ""
+	}
+	s := strings.ToLower(expr.String())
+	replacer := strings.NewReplacer("`", "", " ", "", "\n", "", "\t", "", "\r", "")
+	return replacer.Replace(s)
+}
+
+func normalizeIdent(alias *string) string {
+	if alias == nil {
+		return ""
+	}
+	return strings.ToLower(strings.Trim(*alias, "`\""))
 }
 
 // selectStatementsAreEqualAST compares two SELECT statements using AST-based comparison
@@ -794,14 +872,13 @@ func tableNamesWithAliasAreEqual(name1, name2 *parser.TableNameWithAlias) bool {
 		return eq
 	}
 
-	// Compare database names
-	db1 := ""
+	// Compare database names (ClickHouse dump often qualifies default.t)
+	db1, db2 := "", ""
 	if name1.Database != nil {
-		db1 = normalizeIdentifier(*name1.Database)
+		db1 = normalizeDefaultDatabase(*name1.Database)
 	}
-	db2 := ""
 	if name2.Database != nil {
-		db2 = normalizeIdentifier(*name2.Database)
+		db2 = normalizeDefaultDatabase(*name2.Database)
 	}
 	if db1 != db2 {
 		return false

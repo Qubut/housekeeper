@@ -116,342 +116,281 @@ func normalizeIdentifier(s string) string {
 	return s
 }
 
-// AST-based expression comparison functions
-
-// expressionsAreEqual compares expressions using AST-based structural comparison
+// AST-based expression comparison, via canonical normalization
+//
+// ClickHouse's own `create_query` output (system.functions, SHOW CREATE VIEW,
+// ...) does not round-trip a function/view body byte-for-byte: it re-serializes
+// through its own internal AST, which (a) fully parenthesizes every binary
+// operation regardless of whether the grouping was already implied by
+// precedence/associativity, and (b) freely rewrites sugar such as
+// `isNull(x)`/`isNotNull(x)` into the equivalent `x IS NULL`/`x IS NOT NULL`
+// postfix form (and likely other operator/function rewrites this project
+// hasn't hit yet). A naive structural (parenthesis- and spelling-sensitive)
+// AST comparison therefore reports a permanent, spurious difference between
+// hand-written source DDL and the live schema it created — every `diff` run
+// re-emits CREATE FUNCTION/CREATE OR REPLACE VIEW for objects that never
+// actually changed (see .cursor/adr for the housekeeper-function-diff-loop
+// investigation).
+//
+// canonicalExprKey renders a parenthesization- and precedence-invariant key by
+// walking the fully precedence-resolved AST and re-emitting each operator in a
+// fixed prefix (S-expression) form; grouping parentheses are dissolved because
+// they carry no information once precedence has already produced the tree
+// shape, and `isNull`/`isNotNull` fold into the same key as `IS [NOT] NULL` so
+// either spelling compares equal.
 func expressionsAreEqual(expr1, expr2 *parser.Expression) bool {
 	if eq, needsMoreChecks := compare.NilCheck(expr1, expr2); !needsMoreChecks {
 		return eq
 	}
-
-	// Compare AST structure directly
-	return compare.PointersWithEqual(expr1.Case, expr2.Case, caseExpressionsEqual) &&
-		compare.PointersWithEqual(expr1.Or, expr2.Or, orExpressionsEqual)
+	return canonicalExprKey(expr1) == canonicalExprKey(expr2)
 }
 
-// caseExpressionsEqual compares CASE expressions structurally
-func caseExpressionsEqual(case1, case2 *parser.CaseExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(case1, case2); !needsMoreChecks {
-		return eq
+func canonicalExprKey(e *parser.Expression) string {
+	if e == nil {
+		return ""
 	}
-
-	// Compare WHEN clauses
-	return compare.Slices(case1.WhenClauses, case2.WhenClauses, func(a, b parser.WhenClause) bool {
-		return whenClausesEqual(&a, &b)
-	}) && compare.PointersWithEqual(case1.ElseClause, case2.ElseClause, elseClausesEqual)
+	if e.Case != nil {
+		return canonicalCaseKey(e.Case)
+	}
+	return canonicalOrKey(e.Or)
 }
 
-// whenClausesEqual compares WHEN clauses (using string comparison for now)
-func whenClausesEqual(when1, when2 *parser.WhenClause) bool {
-	if eq, needsMoreChecks := compare.NilCheck(when1, when2); !needsMoreChecks {
-		return eq
+func canonicalCaseKey(c *parser.CaseExpression) string {
+	if c == nil {
+		return ""
 	}
-
-	// For now, use string comparison on the parsed string values
-	// This could be enhanced to parse the condition and result as expressions
-	return strings.TrimSpace(when1.Condition) == strings.TrimSpace(when2.Condition) &&
-		strings.TrimSpace(when1.Result) == strings.TrimSpace(when2.Result)
+	var b strings.Builder
+	b.WriteString("(CASE")
+	for _, when := range c.WhenClauses {
+		b.WriteString(" (WHEN ")
+		b.WriteString(strings.TrimSpace(when.Condition))
+		b.WriteString(" THEN ")
+		b.WriteString(strings.TrimSpace(when.Result))
+		b.WriteString(")")
+	}
+	if c.ElseClause != nil {
+		b.WriteString(" (ELSE ")
+		b.WriteString(strings.TrimSpace(c.ElseClause.Result))
+		b.WriteString(")")
+	}
+	b.WriteString(")")
+	return b.String()
 }
 
-// elseClausesEqual compares ELSE clauses (using string comparison for now)
-func elseClausesEqual(else1, else2 *parser.ElseClause) bool {
-	if eq, needsMoreChecks := compare.NilCheck(else1, else2); !needsMoreChecks {
-		return eq
+func canonicalOrKey(o *parser.OrExpression) string {
+	if o == nil {
+		return ""
 	}
-
-	// For now, use string comparison on the parsed string value
-	// This could be enhanced to parse the result as an expression
-	return strings.TrimSpace(else1.Result) == strings.TrimSpace(else2.Result)
+	key := canonicalAndKey(o.And)
+	for _, rest := range o.Rest {
+		key = "(OR " + key + " " + canonicalAndKey(rest.And) + ")"
+	}
+	return key
 }
 
-// orExpressionsEqual compares OR expressions structurally
-func orExpressionsEqual(or1, or2 *parser.OrExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(or1, or2); !needsMoreChecks {
-		return eq
+func canonicalAndKey(a *parser.AndExpression) string {
+	if a == nil {
+		return ""
 	}
-
-	// Compare base AND expression
-	if !andExpressionsEqual(or1.And, or2.And) {
-		return false
+	key := canonicalNotKey(a.Not)
+	for _, rest := range a.Rest {
+		key = "(AND " + key + " " + canonicalNotKey(rest.Not) + ")"
 	}
-
-	// Compare OR rest clauses
-	return compare.Slices(or1.Rest, or2.Rest, func(a, b parser.OrRest) bool {
-		return a.Op == b.Op && andExpressionsEqual(a.And, b.And)
-	})
+	return key
 }
 
-// andExpressionsEqual compares AND expressions structurally
-func andExpressionsEqual(and1, and2 *parser.AndExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(and1, and2); !needsMoreChecks {
-		return eq
+func canonicalNotKey(n *parser.NotExpression) string {
+	if n == nil {
+		return ""
 	}
-
-	// Compare base NOT expression
-	if !notExpressionsEqual(and1.Not, and2.Not) {
-		return false
+	key := canonicalComparisonKey(n.Comparison)
+	if n.Not {
+		key = "(NOT " + key + ")"
 	}
-
-	// Compare AND rest clauses
-	return compare.Slices(and1.Rest, and2.Rest, func(a, b parser.AndRest) bool {
-		return a.Op == b.Op && notExpressionsEqual(a.Not, b.Not)
-	})
+	return key
 }
 
-// notExpressionsEqual compares NOT expressions structurally
-func notExpressionsEqual(not1, not2 *parser.NotExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(not1, not2); !needsMoreChecks {
-		return eq
+// canonicalComparisonKey folds the `IS [NOT] NULL` postfix onto the same
+// `(FUNC isnull ...)` / `(FUNC isnotnull ...)` shape produced for the
+// `isNull()`/`isNotNull()` call spelling in canonicalPrimaryKey, since
+// ClickHouse treats the two as interchangeable.
+func canonicalComparisonKey(c *parser.ComparisonExpression) string {
+	if c == nil {
+		return ""
 	}
-
-	// Compare NOT flag and comparison
-	return not1.Not == not2.Not && comparisonExpressionsEqual(not1.Comparison, not2.Comparison)
+	key := canonicalAdditionKey(c.Addition)
+	if c.Rest != nil {
+		switch {
+		case c.Rest.SimpleOp != nil:
+			key = "(CMP " + simpleComparisonOpKey(c.Rest.SimpleOp.Op) + " " + key + " " + canonicalAdditionKey(c.Rest.SimpleOp.Addition) + ")"
+		case c.Rest.InOp != nil:
+			op := "IN"
+			if c.Rest.InOp.Not {
+				op = "NOT_IN"
+			}
+			key = "(CMP " + op + " " + key + " " + c.Rest.InOp.Expr.String() + ")"
+		case c.Rest.BetweenOp != nil:
+			op := "BETWEEN"
+			if c.Rest.BetweenOp.Not {
+				op = "NOT_BETWEEN"
+			}
+			key = "(CMP " + op + " " + key + " " + c.Rest.BetweenOp.Expr.String() + ")"
+		}
+	}
+	if c.IsNull != nil {
+		fn := "isnull"
+		if c.IsNull.Not {
+			fn = "isnotnull"
+		}
+		key = "(FUNC " + fn + " " + key + ")"
+	}
+	return key
 }
 
-// comparisonExpressionsEqual compares comparison expressions structurally
-func comparisonExpressionsEqual(comp1, comp2 *parser.ComparisonExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(comp1, comp2); !needsMoreChecks {
-		return eq
-	}
-
-	// Compare base addition expression
-	if !additionExpressionsEqual(comp1.Addition, comp2.Addition) {
-		return false
-	}
-
-	// Compare comparison rest (operations)
-	if eq, needsMoreChecks := compare.NilCheck(comp1.Rest, comp2.Rest); !needsMoreChecks {
-		return eq
-	}
-
-	// Compare operation types using helper function
-	return compareComparisonOperations(comp1.Rest, comp2.Rest)
+func simpleComparisonOpKey(op *parser.SimpleComparisonOp) string {
+	return op.String()
 }
 
-// compareComparisonOperations is a helper to compare different types of comparison operations
-func compareComparisonOperations(rest1, rest2 *parser.ComparisonRest) bool {
-	// Compare simple operations
-	if !compare.PointersWithEqual(rest1.SimpleOp, rest2.SimpleOp, simpleComparisonsEqual) {
-		return false
+func canonicalAdditionKey(a *parser.AdditionExpression) string {
+	if a == nil {
+		return ""
 	}
-
-	// Compare IN operations
-	if !compare.PointersWithEqual(rest1.InOp, rest2.InOp, inComparisonsEqual) {
-		return false
+	key := canonicalMultiplicationKey(a.Multiplication)
+	for _, rest := range a.Rest {
+		key = "(" + rest.Op + " " + key + " " + canonicalMultiplicationKey(rest.Multiplication) + ")"
 	}
-
-	// Compare BETWEEN operations
-	return compare.PointersWithEqual(rest1.BetweenOp, rest2.BetweenOp, betweenComparisonsEqual)
+	return key
 }
 
-// simpleComparisonsEqual compares simple comparison operations
-func simpleComparisonsEqual(comp1, comp2 *parser.SimpleComparison) bool {
-	if eq, needsMoreChecks := compare.NilCheck(comp1, comp2); !needsMoreChecks {
-		return eq
+func canonicalMultiplicationKey(m *parser.MultiplicationExpression) string {
+	if m == nil {
+		return ""
 	}
-
-	// Compare operators
-	if !simpleComparisonOpsEqual(comp1.Op, comp2.Op) {
-		return false
+	key := canonicalUnaryKey(m.Unary)
+	for _, rest := range m.Rest {
+		key = "(" + rest.Op + " " + key + " " + canonicalUnaryKey(rest.Unary) + ")"
 	}
-
-	// Compare addition expressions
-	return additionExpressionsEqual(comp1.Addition, comp2.Addition)
+	return key
 }
 
-// simpleComparisonOpsEqual compares simple comparison operators
-func simpleComparisonOpsEqual(op1, op2 *parser.SimpleComparisonOp) bool {
-	if eq, needsMoreChecks := compare.NilCheck(op1, op2); !needsMoreChecks {
-		return eq
+func canonicalUnaryKey(u *parser.UnaryExpression) string {
+	if u == nil {
+		return ""
 	}
-
-	return op1.Eq == op2.Eq &&
-		op1.NotEq == op2.NotEq &&
-		op1.LtEq == op2.LtEq &&
-		op1.GtEq == op2.GtEq &&
-		op1.Lt == op2.Lt &&
-		op1.Gt == op2.Gt &&
-		op1.Like == op2.Like &&
-		op1.NotLike == op2.NotLike
+	key := canonicalPrimaryKey(u.Primary)
+	if u.Op != "" {
+		key = "(UNARY " + u.Op + " " + key + ")"
+	}
+	return key
 }
 
-// inComparisonsEqual compares IN operations
-func inComparisonsEqual(in1, in2 *parser.InComparison) bool {
-	if eq, needsMoreChecks := compare.NilCheck(in1, in2); !needsMoreChecks {
-		return eq
+// canonicalPrimaryKey dissolves ParenExpression grouping (recursing back into
+// canonicalExprKey) and folds `isNull`/`isNotNull` function-call spelling onto
+// the same key as the `IS [NOT] NULL` postfix form (canonicalComparisonKey).
+func canonicalPrimaryKey(p *parser.PrimaryExpression) string {
+	if p == nil {
+		return ""
 	}
-
-	return in1.Not == in2.Not && in1.In == in2.In
-	// Note: InExpression comparison would need to be implemented based on the actual structure
+	switch {
+	case p.Literal != nil:
+		return canonicalLiteralKey(p.Literal)
+	case p.Identifier != nil:
+		return canonicalIdentifierKey(p.Identifier)
+	case p.Function != nil:
+		return canonicalFunctionKey(p.Function)
+	case p.Parentheses != nil:
+		return canonicalExprKey(&p.Parentheses.Expression)
+	case p.Tuple != nil:
+		return "(TUPLE" + canonicalExprListSuffix(p.Tuple.Elements) + ")"
+	case p.Array != nil:
+		return "(ARRAY" + canonicalExprListSuffix(p.Array.Elements) + ")"
+	case p.Cast != nil:
+		return "(CAST " + p.Cast.String() + ")"
+	case p.Interval != nil:
+		return "(INTERVAL " + p.Interval.String() + ")"
+	case p.Extract != nil:
+		return "(EXTRACT " + p.Extract.String() + ")"
+	default:
+		return ""
+	}
 }
 
-// betweenComparisonsEqual compares BETWEEN operations
-func betweenComparisonsEqual(between1, between2 *parser.BetweenComparison) bool {
-	if eq, needsMoreChecks := compare.NilCheck(between1, between2); !needsMoreChecks {
-		return eq
+func canonicalExprListSuffix(exprs []parser.Expression) string {
+	var b strings.Builder
+	for _, e := range exprs {
+		b.WriteString(" ")
+		b.WriteString(canonicalExprKey(&e))
 	}
-
-	return between1.Not == between2.Not && between1.Between == between2.Between
-	// Note: BetweenExpression comparison would need to be implemented based on the actual structure
+	return b.String()
 }
 
-// additionExpressionsEqual compares addition/subtraction expressions
-func additionExpressionsEqual(add1, add2 *parser.AdditionExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(add1, add2); !needsMoreChecks {
-		return eq
+func canonicalLiteralKey(l *parser.Literal) string {
+	switch {
+	case l.StringValue != nil:
+		return "(STR " + *l.StringValue + ")"
+	case l.Number != nil:
+		return "(NUM " + *l.Number + ")"
+	case l.Boolean != nil:
+		return "(BOOL " + strings.ToUpper(*l.Boolean) + ")"
+	case l.Null:
+		return "(NULL)"
+	default:
+		return "()"
 	}
-
-	// Compare base multiplication expression
-	if !multiplicationExpressionsEqual(add1.Multiplication, add2.Multiplication) {
-		return false
-	}
-
-	// Compare addition rest clauses
-	return compare.Slices(add1.Rest, add2.Rest, func(a, b parser.AdditionRest) bool {
-		return a.Op == b.Op && multiplicationExpressionsEqual(a.Multiplication, b.Multiplication)
-	})
 }
 
-// multiplicationExpressionsEqual compares multiplication/division expressions
-func multiplicationExpressionsEqual(mul1, mul2 *parser.MultiplicationExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(mul1, mul2); !needsMoreChecks {
-		return eq
+// canonicalIdentifierKey lowercases the column name: ClickHouse identifiers
+// compare case-insensitively for our purposes (matches prior comparator
+// behavior for identifiersEqual/functionCallsEqual).
+func canonicalIdentifierKey(id *parser.IdentifierExpr) string {
+	var b strings.Builder
+	b.WriteString("(ID")
+	if id.Database != nil {
+		b.WriteString(" " + normalizeIdentifier(*id.Database))
 	}
-
-	// Compare base unary expression
-	if !unaryExpressionsEqual(mul1.Unary, mul2.Unary) {
-		return false
+	if id.Table != nil {
+		b.WriteString(" " + normalizeIdentifier(*id.Table))
 	}
-
-	// Compare multiplication rest clauses
-	return compare.Slices(mul1.Rest, mul2.Rest, func(a, b parser.MultiplicationRest) bool {
-		return a.Op == b.Op && unaryExpressionsEqual(a.Unary, b.Unary)
-	})
+	b.WriteString(" " + strings.ToLower(normalizeIdentifier(id.Name)))
+	b.WriteString(")")
+	return b.String()
 }
 
-// unaryExpressionsEqual compares unary expressions
-func unaryExpressionsEqual(unary1, unary2 *parser.UnaryExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(unary1, unary2); !needsMoreChecks {
-		return eq
+func canonicalFunctionKey(f *parser.FunctionCall) string {
+	name := strings.ToLower(f.Name)
+	if (name == "isnull" || name == "isnotnull") && len(f.FirstParentheses) == 1 && len(f.SecondParentheses) == 0 {
+		return "(FUNC " + name + " " + canonicalFunctionArgKey(&f.FirstParentheses[0]) + ")"
 	}
 
-	return unary1.Op == unary2.Op && primaryExpressionsEqual(unary1.Primary, unary2.Primary)
+	var b strings.Builder
+	b.WriteString("(FUNC " + name)
+	for _, arg := range f.FirstParentheses {
+		b.WriteString(" ")
+		b.WriteString(canonicalFunctionArgKey(&arg))
+	}
+	if len(f.SecondParentheses) > 0 {
+		b.WriteString(" |")
+		for _, arg := range f.SecondParentheses {
+			b.WriteString(" ")
+			b.WriteString(canonicalFunctionArgKey(&arg))
+		}
+	}
+	if f.Over != nil {
+		b.WriteString(" ")
+		b.WriteString(f.Over.String())
+	}
+	b.WriteString(")")
+	return b.String()
 }
 
-// primaryExpressionsEqual compares primary expressions
-func primaryExpressionsEqual(prim1, prim2 *parser.PrimaryExpression) bool {
-	if eq, needsMoreChecks := compare.NilCheck(prim1, prim2); !needsMoreChecks {
-		return eq
+func canonicalFunctionArgKey(arg *parser.FunctionArg) string {
+	if arg.Star != nil {
+		return "*"
 	}
-
-	// Compare literals
-	if prim1.Literal != nil && prim2.Literal != nil {
-		return literalsEqual(prim1.Literal, prim2.Literal)
+	if arg.Expression != nil {
+		return canonicalExprKey(arg.Expression)
 	}
-	if prim1.Literal != nil || prim2.Literal != nil {
-		return false
-	}
-
-	// Compare identifiers
-	if prim1.Identifier != nil && prim2.Identifier != nil {
-		return identifiersEqual(prim1.Identifier, prim2.Identifier)
-	}
-	if prim1.Identifier != nil || prim2.Identifier != nil {
-		return false
-	}
-
-	// Compare function calls
-	if prim1.Function != nil && prim2.Function != nil {
-		return functionCallsEqual(prim1.Function, prim2.Function)
-	}
-	if prim1.Function != nil || prim2.Function != nil {
-		return false
-	}
-
-	// Compare parentheses expressions
-	if prim1.Parentheses != nil && prim2.Parentheses != nil {
-		return expressionsAreEqual(&prim1.Parentheses.Expression, &prim2.Parentheses.Expression)
-	}
-	if prim1.Parentheses != nil || prim2.Parentheses != nil {
-		return false
-	}
-
-	// For other expression types (Interval, Extract, Cast, Tuple, Array),
-	// we can add more detailed comparisons as needed
-	return true
-}
-
-// literalsEqual compares literal values
-func literalsEqual(lit1, lit2 *parser.Literal) bool {
-	if eq, needsMoreChecks := compare.NilCheck(lit1, lit2); !needsMoreChecks {
-		return eq
-	}
-
-	// Compare string values
-	if !compare.Pointers(lit1.StringValue, lit2.StringValue) {
-		return false
-	}
-
-	// Compare numbers (stored as strings in parser)
-	if !compare.Pointers(lit1.Number, lit2.Number) {
-		return false
-	}
-
-	// Compare booleans (stored as strings in parser)
-	if !compare.Pointers(lit1.Boolean, lit2.Boolean) {
-		return false
-	}
-
-	// Compare NULL
-	return lit1.Null == lit2.Null
-}
-
-// identifiersEqual compares identifier expressions
-func identifiersEqual(id1, id2 *parser.IdentifierExpr) bool {
-	if eq, needsMoreChecks := compare.NilCheck(id1, id2); !needsMoreChecks {
-		return eq
-	}
-
-	// Compare database qualifier
-	if !compare.Pointers(id1.Database, id2.Database) {
-		return false
-	}
-
-	// Compare table qualifier
-	if !compare.Pointers(id1.Table, id2.Table) {
-		return false
-	}
-
-	// Compare column name (case-insensitive for ClickHouse)
-	return strings.EqualFold(id1.Name, id2.Name)
-}
-
-// functionCallsEqual compares function calls including arguments
-func functionCallsEqual(func1, func2 *parser.FunctionCall) bool {
-	if eq, needsMoreChecks := compare.NilCheck(func1, func2); !needsMoreChecks {
-		return eq
-	}
-
-	// Compare function names (case-insensitive for ClickHouse)
-	if !strings.EqualFold(func1.Name, func2.Name) {
-		return false
-	}
-
-	// Compare first parentheses argument lists
-	if !compare.Slices(func1.FirstParentheses, func2.FirstParentheses, func(a, b parser.FunctionArg) bool {
-		return functionArgsEqual(&a, &b)
-	}) {
-		return false
-	}
-
-	// Compare second parentheses argument lists (for parameterized functions)
-	if !compare.Slices(func1.SecondParentheses, func2.SecondParentheses, func(a, b parser.FunctionArg) bool {
-		return functionArgsEqual(&a, &b)
-	}) {
-		return false
-	}
-
-	return true
+	return ""
 }
 
 // engineParametersEqual compares engine parameters
