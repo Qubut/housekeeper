@@ -119,7 +119,42 @@ func rewriteSelect(stmt *parser.SelectStatement, functions map[string]*FunctionI
 		out.Limit = &l
 	}
 
+	if len(stmt.Unions) > 0 {
+		unions := make([]parser.UnionClause, len(stmt.Unions))
+		for i := range stmt.Unions {
+			unions[i] = rewriteUnion(stmt.Unions[i], functions, depth)
+		}
+		out.Unions = unions
+	}
+
 	return &out
+}
+
+// rewriteUnion expands UDF calls inside one UNION arm by reusing rewriteSelect
+// on a temporary SelectStatement (no nested Unions / WITH on the arm).
+func rewriteUnion(u parser.UnionClause, functions map[string]*FunctionInfo, depth int) parser.UnionClause {
+	arm := &parser.SelectStatement{
+		Select:   u.Select,
+		Distinct: u.Distinct,
+		Columns:  u.Columns,
+		From:     u.From,
+		Where:    u.Where,
+		GroupBy:  u.GroupBy,
+		Having:   u.Having,
+		OrderBy:  u.OrderBy,
+		Limit:    u.Limit,
+		Settings: u.Settings,
+	}
+	rewritten := rewriteSelect(arm, functions, depth)
+	u.Columns = rewritten.Columns
+	u.From = rewritten.From
+	u.Where = rewritten.Where
+	u.GroupBy = rewritten.GroupBy
+	u.Having = rewritten.Having
+	u.OrderBy = rewritten.OrderBy
+	u.Limit = rewritten.Limit
+	u.Settings = rewritten.Settings
+	return u
 }
 
 func rewriteFrom(from *parser.FromClause, functions map[string]*FunctionInfo, depth int) *parser.FromClause {

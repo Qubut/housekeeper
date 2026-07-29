@@ -1,0 +1,5 @@
+SELECT `id`
+FROM `a`
+UNION DISTINCT
+SELECT `id`
+FROM `b`;

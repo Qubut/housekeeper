@@ -173,3 +173,17 @@ func TestSelectComplex(t *testing.T) {
 
 	runStatementTests(t, "query/complex", tests)
 }
+
+func TestSelectUnion(t *testing.T) {
+	t.Parallel()
+
+	tests := []statementTest{
+		{name: "union_all_literals", sql: `SELECT 1 AS a UNION ALL SELECT 2 AS a;`},
+		{name: "union_all_tables", sql: `SELECT id, name FROM skins WHERE active = 1 UNION ALL SELECT id, name FROM stickers WHERE active = 1;`},
+		{name: "union_distinct", sql: `SELECT id FROM a UNION DISTINCT SELECT id FROM b;`},
+		{name: "union_bare", sql: `SELECT id FROM a UNION SELECT id FROM b;`},
+		{name: "union_all_three", sql: `SELECT 1 AS n UNION ALL SELECT 2 AS n UNION ALL SELECT 3 AS n;`},
+	}
+
+	runStatementTests(t, "query/union", tests)
+}

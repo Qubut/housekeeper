@@ -1,0 +1,3 @@
+SELECT 1 AS `a`
+UNION ALL
+SELECT 2 AS `a`;
