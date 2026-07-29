@@ -80,7 +80,55 @@ func (f *Formatter) formatSelectStatement(stmt *parser.SelectStatement) string {
 		lines = append(lines, f.formatSettingsClause(stmt.Settings))
 	}
 
+	// UNION [ALL|DISTINCT] SELECT ... arms
+	for i := range stmt.Unions {
+		lines = append(lines, f.formatUnionClause(&stmt.Unions[i])...)
+	}
+
 	return strings.Join(lines, "\n")
+}
+
+// formatUnionClause formats one UNION [ALL|DISTINCT] SELECT arm as lines.
+func (f *Formatter) formatUnionClause(u *parser.UnionClause) []string {
+	if u == nil {
+		return nil
+	}
+
+	unionLine := f.keyword("UNION")
+	if u.Mode != nil {
+		unionLine += " " + f.keyword(*u.Mode)
+	}
+
+	selectLine := f.keyword("SELECT")
+	if u.Distinct {
+		selectLine += " " + f.keyword("DISTINCT")
+	}
+
+	lines := []string{unionLine}
+	lines = f.appendSelectColumns(lines, selectLine, u.Columns)
+
+	if u.From != nil {
+		lines = append(lines, f.formatFromClause(u.From))
+	}
+	if u.Where != nil {
+		lines = append(lines, f.formatWhereClause(u.Where))
+	}
+	if u.GroupBy != nil {
+		lines = append(lines, f.formatGroupByClause(u.GroupBy))
+	}
+	if u.Having != nil {
+		lines = append(lines, f.formatHavingClause(u.Having))
+	}
+	if u.OrderBy != nil {
+		lines = append(lines, f.formatSelectOrderByClause(u.OrderBy))
+	}
+	if u.Limit != nil {
+		lines = append(lines, f.formatLimitClause(u.Limit))
+	}
+	if u.Settings != nil {
+		lines = append(lines, f.formatSettingsClause(u.Settings))
+	}
+	return lines
 }
 
 // formatWithClause formats WITH clause for CTEs

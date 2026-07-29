@@ -642,6 +642,9 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 	if (stmt1.Limit == nil) != (stmt2.Limit == nil) {
 		return false
 	}
+	if len(stmt1.Unions) != len(stmt2.Unions) {
+		return false
+	}
 
 	for i := range stmt1.Columns {
 		c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
@@ -664,7 +667,7 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 			return false
 		}
 	}
-	return true
+	return unionClausesAreEqual(stmt1.Unions, stmt2.Unions)
 }
 
 func normalizeSelectExpr(expr *parser.Expression) string {
@@ -730,6 +733,50 @@ func selectStatementsAreEqualAST(stmt1, stmt2 *parser.SelectStatement) bool {
 		return false
 	}
 
+	if !unionClausesAreEqual(stmt1.Unions, stmt2.Unions) {
+		return false
+	}
+
+	return true
+}
+
+func unionClausesAreEqual(u1, u2 []parser.UnionClause) bool {
+	if len(u1) != len(u2) {
+		return false
+	}
+	for i := range u1 {
+		a, b := u1[i], u2[i]
+		if normalizeIdent(a.Mode) != normalizeIdent(b.Mode) {
+			return false
+		}
+		if a.Distinct != b.Distinct {
+			return false
+		}
+		if !selectColumnsAreEqual(a.Columns, b.Columns) {
+			return false
+		}
+		if !fromClausesAreEqual(a.From, b.From) {
+			return false
+		}
+		if !whereClausesAreEqual(a.Where, b.Where) {
+			return false
+		}
+		if !groupByClausesAreEqual(a.GroupBy, b.GroupBy) {
+			return false
+		}
+		if !havingClausesAreEqual(a.Having, b.Having) {
+			return false
+		}
+		if !selectOrderByClausesAreEqual(a.OrderBy, b.OrderBy) {
+			return false
+		}
+		if !limitClausesAreEqual(a.Limit, b.Limit) {
+			return false
+		}
+		if !settingsClausesAreEqual(a.Settings, b.Settings) {
+			return false
+		}
+	}
 	return true
 }
 
