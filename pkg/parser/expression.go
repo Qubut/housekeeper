@@ -233,12 +233,15 @@ type (
 		Result string `parser:"@(~'END')+"`
 	}
 
-	// CastExpression represents type casting
+	// CastExpression represents type casting.
+	// ClickHouse accepts both CAST(x AS T) and CAST(x, 'T') (SHOW CREATE emits the latter).
 	CastExpression struct {
 		Cast       string     `parser:"'CAST' '('"`
 		Expression Expression `parser:"@@"`
-		As         string     `parser:"'AS'"`
-		Type       DataType   `parser:"@@"`
+		As         *string    `parser:"( @'AS'"`
+		Type       *DataType  `parser:"@@"`
+		Comma      *string    `parser:"| @','"`
+		TypeString *string    `parser:"@String )"`
 		Close      string     `parser:"')'"`
 	}
 
@@ -666,7 +669,14 @@ func (c *CaseExpression) String() string {
 }
 
 func (c *CastExpression) String() string {
-	return "CAST(" + c.Expression.String() + " AS " + formatDataTypeForExpression(c.Type) + ")"
+	if c.Type != nil {
+		return "CAST(" + c.Expression.String() + " AS " + formatDataTypeForExpression(*c.Type) + ")"
+	}
+	if c.TypeString != nil {
+		raw := strings.Trim(*c.TypeString, "'\"")
+		return "CAST(" + c.Expression.String() + " AS " + raw + ")"
+	}
+	return "CAST(" + c.Expression.String() + " AS String)"
 }
 
 func (e *ExtractExpression) String() string {
