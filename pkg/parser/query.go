@@ -112,12 +112,14 @@ type (
 		Arguments []FunctionArg `parser:"'(' (@@ (',' @@)*)? ')'"`
 	}
 
-	// JoinClause represents JOIN operations
+	// JoinClause represents JOIN operations.
+	// ClickHouse order: [ASOF|ANY|ALL] [INNER|LEFT|…] JOIN (ASOF before join type).
 	JoinClause struct {
-		Type      string         `parser:"@('INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS')?"`
-		Join      string         `parser:"@('JOIN' | 'ARRAY' 'JOIN' | 'GLOBAL' 'JOIN' | 'ASOF' 'JOIN')"`
-		Table     TableRef       `parser:"@@"`
-		Condition *JoinCondition `parser:"@@?"`
+		Strictness string         `parser:"@('ASOF' | 'ANY' | 'ALL')?"`
+		Type       string         `parser:"@('INNER' | 'LEFT' | 'RIGHT' | 'FULL' | 'CROSS')?"`
+		Join       string         `parser:"@('JOIN' | 'ARRAY' 'JOIN' | 'GLOBAL' 'JOIN')"`
+		Table      TableRef       `parser:"@@"`
+		Condition  *JoinCondition `parser:"@@?"`
 	}
 
 	// JoinCondition represents ON or USING clause in joins
