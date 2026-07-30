@@ -1006,7 +1006,7 @@ func functionsWithAliasAreEqual(fn1, fn2 *parser.FunctionWithAlias) bool {
 
 // joinsAreEqual compares JOIN clauses
 func joinsAreEqual(join1, join2 *parser.JoinClause) bool {
-	if join1.Type != join2.Type || join1.Join != join2.Join {
+	if join1.Strictness != join2.Strictness || join1.Type != join2.Type || join1.Join != join2.Join {
 		return false
 	}
 	if !tableRefsAreEqual(&join1.Table, &join2.Table) {

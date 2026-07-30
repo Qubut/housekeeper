@@ -46,6 +46,8 @@ func TestSelectParsing(t *testing.T) {
 		{"full join", "SELECT * FROM users AS u FULL JOIN orders AS o ON u.id = o.user_id", true},
 		{"cross join", "SELECT * FROM users AS u CROSS JOIN categories AS c", true},
 		{"join using", "SELECT * FROM users AS u JOIN orders AS o USING (user_id)", true},
+		{"asof left join", "SELECT * FROM trades AS t ASOF LEFT JOIN rates AS r ON t.symbol = r.symbol AND t.ts >= r.ts", true},
+		{"asof join", "SELECT * FROM trades AS t ASOF JOIN rates AS r ON t.symbol = r.symbol AND t.ts >= r.ts", true},
 
 		// GROUP BY clause - now working!
 		{"group by single", "SELECT category, count(*) FROM products GROUP BY category", true},
