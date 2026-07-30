@@ -268,18 +268,33 @@ func (f *Formatter) formatFunctionWithAlias(fn *parser.FunctionWithAlias) string
 	return result
 }
 
+// normalizeJoinKeyword restores spaces participle drops from multi-token JOIN kinds.
+func normalizeJoinKeyword(join string) string {
+	switch strings.ToUpper(strings.ReplaceAll(join, " ", "")) {
+	case "ARRAYJOIN":
+		return "ARRAY JOIN"
+	case "GLOBALJOIN":
+		return "GLOBAL JOIN"
+	default:
+		return join
+	}
+}
+
 // formatJoinClause formats JOIN clauses
 func (f *Formatter) formatJoinClause(join *parser.JoinClause) string {
 	if join == nil {
 		return ""
 	}
 
-	result := ""
-	if join.Type != "" {
-		result = f.keyword(join.Type) + " " + f.keyword(join.Join)
-	} else {
-		result = f.keyword(join.Join) // Default JOIN
+	var parts []string
+	if join.Strictness != "" {
+		parts = append(parts, f.keyword(join.Strictness))
 	}
+	if join.Type != "" {
+		parts = append(parts, f.keyword(join.Type))
+	}
+	parts = append(parts, f.keyword(normalizeJoinKeyword(join.Join)))
+	result := strings.Join(parts, " ")
 
 	result += " " + f.formatTableRef(&join.Table)
 
