@@ -188,10 +188,16 @@ type (
 		Frame       *WindowFrame  `parser:"@@? ')'"`
 	}
 
-	// OrderByExpr for ORDER BY in OVER clause
+	// OrderByExpr for ORDER BY in OVER clause. ASC is ClickHouse's default
+	// sort direction, but SHOW CREATE VIEW/FUNCTION echoes it back explicitly
+	// even when the source DDL omitted it (unlike DESC, which is only ever
+	// written when meant) — accepted and discarded here, mirroring the
+	// top-level ORDER BY grammar's `('ASC' | 'DESC')?` in OrderByColumn below,
+	// so re-diffing a view with a window function after it has round-tripped
+	// through a live cluster doesn't fail to parse its own normalized output.
 	OrderByExpr struct {
 		Expression Expression `parser:"@@"`
-		Desc       bool       `parser:"@'DESC'?"`
+		Desc       bool       `parser:"( @'DESC' | 'ASC' )?"`
 		Nulls      *string    `parser:"('NULLS' @('FIRST' | 'LAST'))?"`
 	}
 
