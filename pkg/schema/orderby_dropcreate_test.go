@@ -10,21 +10,21 @@ import (
 )
 
 func TestOrderByChangeUsesDropCreate(t *testing.T) {
-	curSQL := `CREATE TABLE buff163_market_listings (
+	curSQL := `CREATE TABLE listings (
     created_at DateTime64(6),
-    game String,
-    market_hash_name String,
-    order_type String,
+    category String,
+    name String,
+    kind String,
     version UInt64
 ) ENGINE = ReplicatedReplacingMergeTree(version)
-ORDER BY (game, market_hash_name, order_type, created_at);`
-	tgtSQL := `CREATE TABLE buff163_market_listings (
+ORDER BY (category, name, kind, created_at);`
+	tgtSQL := `CREATE TABLE listings (
     created_at DateTime64(6),
     item_id UInt64,
-    order_type String,
+    kind String,
     version UInt64
 ) ENGINE = ReplicatedReplacingMergeTree(version)
-ORDER BY (item_id, order_type, created_at);`
+ORDER BY (item_id, kind, created_at);`
 
 	cur, err := parser.ParseString(curSQL)
 	require.NoError(t, err)
