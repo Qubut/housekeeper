@@ -126,6 +126,11 @@ func TestSelectWindow(t *testing.T) {
 	tests := []statementTest{
 		{name: "rank", sql: `SELECT name, salary, rank() OVER (ORDER BY salary DESC) AS salary_rank FROM employees;`},
 		{name: "partition", sql: `SELECT name, rank() OVER (PARTITION BY department ORDER BY salary DESC) FROM employees;`},
+		// ClickHouse's SHOW CREATE echoes ASC explicitly even when the source
+		// DDL relied on the default ascending order (unlike DESC, which is only
+		// ever present when meant) — a running-total window function, the
+		// common shape this affects, has no reason to sort descending.
+		{name: "explicit_ascending_running_sum", sql: `SELECT item_id, ts, sum(x) OVER (PARTITION BY item_id ORDER BY ts ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_sum FROM events;`},
 	}
 
 	runStatementTests(t, "query/window", tests)
