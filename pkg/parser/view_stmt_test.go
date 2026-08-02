@@ -14,6 +14,8 @@ func TestCreateView(t *testing.T) {
 		{name: "with_backticks", sql: "CREATE VIEW `analytics-db`.`daily-summary` AS SELECT `order-date` AS `date`, count(*) AS `total-orders` FROM `orders-table` GROUP BY `order-date`;"},
 		{name: "with_window_functions", sql: `CREATE VIEW analytics.user_rankings AS SELECT user_id, name, score, row_number() OVER (ORDER BY score DESC) AS rank, rank() OVER (PARTITION BY category ORDER BY score DESC) AS category_rank FROM user_scores ORDER BY score DESC;`},
 		{name: "union_all_dual_path", sql: `CREATE VIEW v_steam_listing_groups ON CLUSTER '{cluster}' AS SELECT ifNull(market_bucket_group_id, '') AS g_id, any(toUInt64(item_id)) AS item_id, any(market_hash_name) AS market_hash_name FROM (SELECT item_id, market_hash_name, market_bucket_group_id FROM dictionary(catalog_items) WHERE market_hash_name != '' AND ifNull(market_bucket_group_id, '') != '') GROUP BY g_id UNION ALL SELECT market_hash_name AS g_id, toUInt64(item_id) AS item_id, market_hash_name FROM dictionary(catalog_items) WHERE market_hash_name != '' AND ifNull(market_bucket_group_id, '') = '';`},
+		{name: "parameterized_single_param", sql: `CREATE VIEW v_by_id AS SELECT id, name FROM items WHERE id = {id:UInt64};`},
+		{name: "parameterized_array_param", sql: `CREATE VIEW v_buff163_poll_candidates AS SELECT c.item_id AS item_id, w.last_polled AS last_polled FROM (SELECT arrayJoin({ids:Array(UInt64)}) AS item_id) AS c LEFT JOIN (SELECT item_id, max(last_updated) AS last_polled FROM update_history WHERE source = 'buff163' AND item_id IN {ids:Array(UInt64)} GROUP BY item_id) AS w ON w.item_id = c.item_id;`},
 	}
 
 	runStatementTests(t, "view/create", tests)
