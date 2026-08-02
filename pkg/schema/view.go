@@ -616,7 +616,7 @@ func selectClausesAreEqualWithTolerance(select1, select2 *parser.SelectStatement
 }
 
 // selectStatementsAreEqualNormalized compares SELECT projections by normalized expression strings.
-// Catches semantic renames (market_hash_name → item_id) without looping on ClickHouse SHOW CREATE formatting.
+// Catches semantic renames (e.g. a column renamed from "name" to "id") without looping on ClickHouse SHOW CREATE formatting.
 func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bool {
 	if (stmt1.With == nil) != (stmt2.With == nil) {
 		return false

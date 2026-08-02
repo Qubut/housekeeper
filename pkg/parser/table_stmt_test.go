@@ -54,7 +54,7 @@ func TestCreateTable(t *testing.T) {
 		COMMENT 'User events table';`},
 
 		// Cluster macro references ('{cluster}', '{shard}', etc.)
-		{name: "on_cluster_macro", sql: `CREATE TABLE steam_market_data ON CLUSTER '{cluster}' (ts DateTime64(6), price Int64) ENGINE = ReplicatedReplacingMergeTree() ORDER BY ts;`},
+		{name: "on_cluster_macro", sql: `CREATE TABLE market_data ON CLUSTER '{cluster}' (ts DateTime64(6), price Int64) ENGINE = ReplicatedReplacingMergeTree() ORDER BY ts;`},
 
 		// Backticks
 		{name: "with_backticks", sql: "CREATE TABLE `user-db`.`order-table` (`user-id` UInt64, `order-id` String, `order-date` Date, `select` String, `group` LowCardinality(String)) ENGINE = MergeTree() ORDER BY (`user-id`, `order-date`);"},

@@ -98,7 +98,7 @@ func TestNormalizeDefaultDatabase(t *testing.T) {
 // TestGetViewTableTargetValue_DefaultDB ensures the implicit `default` database
 // is stripped from MV TO clauses so live extraction matches unqualified source.
 func TestGetViewTableTargetValue_DefaultDB(t *testing.T) {
-	tbl := "market_item_intensity"
+	tbl := "events"
 	defDB := "default"
 	otherDB := "analytics"
 	backtickedDef := "`default`"
@@ -109,10 +109,10 @@ func TestGetViewTableTargetValue_DefaultDB(t *testing.T) {
 		want   string
 	}{
 		{"nil target", nil, ""},
-		{"unqualified table", &parser.ViewTableTarget{Table: &tbl}, "market_item_intensity"},
-		{"default db stripped", &parser.ViewTableTarget{Database: &defDB, Table: &tbl}, "market_item_intensity"},
-		{"backticked default db stripped", &parser.ViewTableTarget{Database: &backtickedDef, Table: &tbl}, "market_item_intensity"},
-		{"non-default db kept", &parser.ViewTableTarget{Database: &otherDB, Table: &tbl}, "analytics.market_item_intensity"},
+		{"unqualified table", &parser.ViewTableTarget{Table: &tbl}, "events"},
+		{"default db stripped", &parser.ViewTableTarget{Database: &defDB, Table: &tbl}, "events"},
+		{"backticked default db stripped", &parser.ViewTableTarget{Database: &backtickedDef, Table: &tbl}, "events"},
+		{"non-default db kept", &parser.ViewTableTarget{Database: &otherDB, Table: &tbl}, "analytics.events"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

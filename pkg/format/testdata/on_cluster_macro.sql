@@ -1,6 +1,6 @@
 -- Cluster macro references must be preserved verbatim (no backtick quoting)
 
-CREATE TABLE `steam_market_data` ON CLUSTER '{cluster}' (
+CREATE TABLE `market_data` ON CLUSTER '{cluster}' (
     `ts`    DateTime64(6),
     `price` Int64
 )
