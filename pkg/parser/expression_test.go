@@ -109,6 +109,14 @@ func TestExpressionParsing(t *testing.T) {
 		{"CAST", "CAST(age AS String)", true},
 		{"CAST complex", "CAST(price * 1.1 AS Decimal(10, 2))", true},
 
+		// Parameter placeholders (ClickHouse parameterized views / query params)
+		{"parameter simple type", "{id:UInt64}", true},
+		{"parameter array type", "{ids:Array(UInt64)}", true},
+		{"parameter nullable type", "{cutoff:Nullable(DateTime64(6))}", true},
+		{"parameter in comparison", "id = {id:UInt64}", true},
+		{"parameter in IN clause", "item_id IN {ids:Array(UInt64)}", true},
+		{"parameter as function arg", "arrayJoin({ids:Array(UInt64)})", true},
+
 		// INTERVAL - now working!
 		{"INTERVAL", "INTERVAL 1 DAY", true},
 		{"INTERVAL in expression", "timestamp > now() - INTERVAL 7 DAY", true},

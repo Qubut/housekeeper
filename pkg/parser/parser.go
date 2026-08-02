@@ -23,6 +23,11 @@ var (
 		{Name: "NotEq", Pattern: `!=|<>`},
 		{Name: "LtEq", Pattern: `<=`},
 		{Name: "GtEq", Pattern: `>=`},
+		// LBrace/RBrace/Colon back ClickHouse query-parameter placeholders
+		// ({name:Type}, e.g. {ids:Array(UInt64)}) used in parameterized views.
+		{Name: "LBrace", Pattern: `\{`},
+		{Name: "RBrace", Pattern: `\}`},
+		{Name: "Colon", Pattern: `:`},
 		{Name: "Punct", Pattern: `[(),.;=+\-*/%<>\[\]!]`},
 		{Name: "Whitespace", Pattern: `\s+`},
 	})

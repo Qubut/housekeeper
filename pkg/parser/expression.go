@@ -129,11 +129,25 @@ type (
 		Interval    *IntervalExpr      `parser:"| @@"`
 		Extract     *ExtractExpression `parser:"| @@"`
 		Cast        *CastExpression    `parser:"| @@"`
+		Parameter   *ParameterExpr     `parser:"| @@"`
 		Function    *FunctionCall      `parser:"| @@"`
 		Identifier  *IdentifierExpr    `parser:"| @@"`
 		Parentheses *ParenExpression   `parser:"| @@"`
 		Tuple       *TupleExpression   `parser:"| @@"`
 		Array       *ArrayExpression   `parser:"| @@"`
+	}
+
+	// ParameterExpr represents a ClickHouse query-parameter placeholder,
+	// e.g. {item_id:UInt64} or {ids:Array(UInt64)}. This is the substitution
+	// syntax used by parameterized views (CREATE VIEW ... AS SELECT ... WHERE
+	// x = {p:Type}, called as SELECT * FROM view(p = value)) and by clients
+	// binding query parameters directly.
+	ParameterExpr struct {
+		Open  string    `parser:"'{'"`
+		Name  string    `parser:"@(Ident | BacktickIdent)"`
+		Colon string    `parser:"':'"`
+		Type  *DataType `parser:"@@"`
+		Close string    `parser:"'}'"`
 	}
 
 	// Literal represents literal values
@@ -275,11 +289,16 @@ type (
 		High AdditionExpression `parser:"@@"`
 	}
 
-	// InExpression handles IN operations with lists, arrays, or subqueries
+	// InExpression handles IN operations with lists, arrays, subqueries, or any
+	// other array-valued expression (e.g. a query parameter placeholder like
+	// {ids:Array(UInt64)}, a column reference, or a function call) — ClickHouse
+	// accepts IN <expr> wherever <expr> evaluates to an array or tuple, not only
+	// the parenthesized/literal/subquery forms above.
 	InExpression struct {
 		List     []Expression     `parser:"'(' @@ (',' @@)* ')'"`
 		Array    *ArrayExpression `parser:"| @@"`
 		Subquery *Subquery        `parser:"| @@"`
+		Expr     *Expression      `parser:"| @@"`
 	}
 
 	// IsNullExpr handles IS NULL and IS NOT NULL expressions as postfix operators
@@ -450,6 +469,9 @@ func (p *PrimaryExpression) String() string {
 	if p.Cast != nil {
 		return p.Cast.String()
 	}
+	if p.Parameter != nil {
+		return p.Parameter.String()
+	}
 	if p.Function != nil {
 		return p.Function.String()
 	}
@@ -466,6 +488,14 @@ func (p *PrimaryExpression) String() string {
 		return p.Array.String()
 	}
 	return ""
+}
+
+// String returns the string representation of a ParameterExpr, e.g. {ids:Array(UInt64)}.
+func (p *ParameterExpr) String() string {
+	if p == nil {
+		return ""
+	}
+	return "{" + p.Name + ":" + p.Type.String() + "}"
 }
 
 // String returns the string representation of a Literal value (string, number, boolean, or NULL).
@@ -1000,7 +1030,26 @@ func (p *PrimaryExpression) Equal(other *PrimaryExpression) bool {
 		return false
 	}
 
+	// Check Parameter
+	if (p.Parameter != nil) != (other.Parameter != nil) {
+		return false
+	}
+	if p.Parameter != nil && !p.Parameter.Equal(other.Parameter) {
+		return false
+	}
+
 	return true
+}
+
+// Equal compares two ParameterExpr instances by name and type.
+func (p *ParameterExpr) Equal(other *ParameterExpr) bool {
+	if p == nil && other == nil {
+		return true
+	}
+	if p == nil || other == nil {
+		return false
+	}
+	return p.Name == other.Name && p.Type.Equal(other.Type)
 }
 
 // Equal compares two TupleExpression values element-wise.
@@ -1166,6 +1215,10 @@ func (i InExpression) String() string {
 
 	if i.Subquery != nil {
 		return i.Subquery.String()
+	}
+
+	if i.Expr != nil {
+		return i.Expr.String()
 	}
 
 	return "()"

@@ -219,6 +219,8 @@ func (f *Formatter) formatPrimaryExpressionWithContext(primary *parser.PrimaryEx
 		return f.formatArrayExpression(primary.Array)
 	case primary.Cast != nil:
 		return f.formatCastExpression(primary.Cast)
+	case primary.Parameter != nil:
+		return f.formatParameterExpr(primary.Parameter)
 	case primary.Interval != nil:
 		return f.formatIntervalExpression(primary.Interval)
 	case primary.Extract != nil:
@@ -478,6 +480,16 @@ func (f *Formatter) formatTupleExpression(tuple *parser.TupleExpression) string 
 	}
 
 	return "(" + strings.Join(elements, ", ") + ")"
+}
+
+// formatParameterExpr formats a ClickHouse query-parameter placeholder,
+// e.g. {ids:Array(UInt64)}, reusing the shared data-type formatter so nested
+// parametric types (Array/Nullable/etc.) render consistently with column types.
+func (f *Formatter) formatParameterExpr(param *parser.ParameterExpr) string {
+	if param == nil {
+		return ""
+	}
+	return "{" + param.Name + ":" + f.formatDataType(param.Type) + "}"
 }
 
 // Placeholder formatters for unsupported expression types (fall back to String())
