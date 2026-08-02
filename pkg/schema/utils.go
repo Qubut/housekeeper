@@ -228,7 +228,7 @@ func canonicalComparisonKey(c *parser.ComparisonExpression) string {
 			if c.Rest.InOp.Not {
 				op = "NOT_IN"
 			}
-			key = "(CMP " + op + " " + key + " " + c.Rest.InOp.Expr.String() + ")"
+			key = "(CMP " + op + " " + key + " " + canonicalInExprKey(c.Rest.InOp.Expr) + ")"
 		case c.Rest.BetweenOp != nil:
 			op := "BETWEEN"
 			if c.Rest.BetweenOp.Not {
@@ -249,6 +249,33 @@ func canonicalComparisonKey(c *parser.ComparisonExpression) string {
 
 func simpleComparisonOpKey(op *parser.SimpleComparisonOp) string {
 	return op.String()
+}
+
+// canonicalInExprKey folds IN's right-hand side onto the same key regardless
+// of whether the source wrote a bare scalar/placeholder/column or ClickHouse
+// echoed it back wrapped in a single-element parenthesized list (`IN
+// {p:Array(UInt64)}` vs `IN ({p:Array(UInt64)})`) — both denote the same
+// value, and ClickHouse's SHOW CREATE always normalizes a bare RHS into the
+// parenthesized-list form, so without this fold any `IN <placeholder>` or
+// `IN <column>` condition compares as permanently different from its own
+// live definition.
+func canonicalInExprKey(in *parser.InExpression) string {
+	switch {
+	case in == nil:
+		return ""
+	case in.Expr != nil:
+		return canonicalExprKey(in.Expr)
+	case len(in.List) == 1:
+		return canonicalExprKey(&in.List[0])
+	case len(in.List) > 1:
+		return "(LIST" + canonicalExprListSuffix(in.List) + ")"
+	case in.Array != nil:
+		return "(ARRAY" + canonicalExprListSuffix(in.Array.Elements) + ")"
+	case in.Subquery != nil:
+		return "(SUBQUERY " + in.Subquery.String() + ")"
+	default:
+		return ""
+	}
 }
 
 func canonicalAdditionKey(a *parser.AdditionExpression) string {
@@ -307,12 +334,22 @@ func canonicalPrimaryKey(p *parser.PrimaryExpression) string {
 	case p.Cast != nil:
 		return "(CAST " + p.Cast.String() + ")"
 	case p.Interval != nil:
-		return "(INTERVAL " + p.Interval.String() + ")"
+		return canonicalIntervalKey(p.Interval)
 	case p.Extract != nil:
 		return "(EXTRACT " + p.Extract.String() + ")"
 	default:
 		return ""
 	}
+}
+
+// canonicalIntervalKey folds ClickHouse's `INTERVAL n UNIT` literal syntax
+// onto the same key as the `toInterval<Unit>(n)` function-call form: ClickHouse
+// always echoes date arithmetic back in the function-call spelling in
+// SHOW CREATE, regardless of which spelling the source DDL used, so without
+// this fold every view whose source SQL writes `INTERVAL n UNIT` compares as
+// permanently different from its own live definition.
+func canonicalIntervalKey(iv *parser.IntervalExpr) string {
+	return "(FUNC tointerval" + strings.ToLower(iv.Unit) + " (NUM " + iv.Value + "))"
 }
 
 func canonicalExprListSuffix(exprs []parser.Expression) string {
