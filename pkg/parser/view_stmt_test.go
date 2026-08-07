@@ -32,6 +32,15 @@ func TestCreateMaterializedView(t *testing.T) {
 		{name: "full_options", sql: `CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS analytics.mv_complex ON CLUSTER production TO analytics.destination_table ENGINE = ReplacingMergeTree(version) POPULATE AS SELECT id, name, max(version) AS version, argMax(data, version) AS data FROM source GROUP BY id, name;`},
 		{name: "with_joins", sql: `CREATE MATERIALIZED VIEW analytics.mv_joins ENGINE = MergeTree() ORDER BY (date, category) AS SELECT toDate(e.timestamp) AS date, e.user_id, u.name AS user_name, e.category, count() AS event_count, sum(e.value) AS total_value FROM events AS e LEFT JOIN users AS u ON e.user_id = u.id WHERE e.status = 'completed' GROUP BY date, e.user_id, u.name, e.category;`},
 		{name: "with_states", sql: `CREATE MATERIALIZED VIEW metrics.mv_user_stats_state TO metrics.user_stats_aggregated AS SELECT toDate(timestamp) AS date, user_id, sumState(amount) AS total_amount_state, avgState(duration) AS avg_duration_state, uniqState(session_id) AS unique_sessions_state FROM raw_events GROUP BY date, user_id;`},
+		{name: "refresh_every_append_to", sql: `CREATE MATERIALIZED VIEW mv_refresh REFRESH EVERY 30 SECOND APPEND TO target_table AS SELECT 1 AS x;`},
+		{name: "refresh_every_to", sql: `CREATE MATERIALIZED VIEW analytics.mv_hourly REFRESH EVERY 1 HOUR TO analytics.hourly_snapshot AS SELECT toStartOfHour(ts) AS hour, count() AS cnt FROM events GROUP BY hour;`},
+		{name: "refresh_every_offset_randomize", sql: `CREATE MATERIALIZED VIEW mv_spread REFRESH EVERY 1 DAY OFFSET 2 HOUR RANDOMIZE FOR 15 MINUTE TO snapshot AS SELECT 1 AS x;`},
+		{name: "refresh_after_depends_on", sql: `CREATE MATERIALIZED VIEW mv_child REFRESH AFTER 0 SECOND DEPENDS ON mv_parent APPEND TO child_log AS SELECT 1 AS x;`},
+		{name: "refresh_depends_on_only", sql: `CREATE MATERIALIZED VIEW mv_dep REFRESH DEPENDS ON analytics.mv_upstream TO analytics.dep_target AS SELECT 1 AS x;`},
+		{name: "refresh_every_settings_append", sql: `CREATE MATERIALIZED VIEW mv_settings REFRESH EVERY 10 SECOND SETTINGS refresh_retries = 3 APPEND TO target_table AS SELECT 1 AS x;`},
+		{name: "refresh_on_cluster_append", sql: `CREATE MATERIALIZED VIEW analytics.mv_refresh ON CLUSTER '{cluster}' REFRESH EVERY 30 SECONDS APPEND TO analytics.target_table AS SELECT 1 AS x;`},
+		{name: "refresh_every_empty", sql: `CREATE MATERIALIZED VIEW mv_empty REFRESH EVERY 1 HOUR TO t EMPTY AS SELECT 1 AS x;`},
+		{name: "refresh_multipart_interval", sql: `CREATE MATERIALIZED VIEW mv_multi REFRESH EVERY 1 DAY 2 HOUR TO t AS SELECT 1 AS x;`},
 	}
 
 	runStatementTests(t, "view/create_materialized", tests)

@@ -13,26 +13,65 @@ type (
 		Table    *string `parser:"@(Ident | BacktickIdent))"`
 	}
 
+	// RefreshIntervalPart is one `N UNIT` component of a refresh time interval
+	// (e.g. `10 SECOND`, `2 DAY`). Singular and plural unit keywords are accepted
+	// to match ClickHouse's parseIntervalKind.
+	RefreshIntervalPart struct {
+		Value string `parser:"@Number"`
+		Unit  string `parser:"@('NANOSECOND' | 'NANOSECONDS' | 'MICROSECOND' | 'MICROSECONDS' | 'MILLISECOND' | 'MILLISECONDS' | 'SECOND' | 'SECONDS' | 'MINUTE' | 'MINUTES' | 'HOUR' | 'HOURS' | 'DAY' | 'DAYS' | 'WEEK' | 'WEEKS' | 'MONTH' | 'MONTHS' | 'QUARTER' | 'QUARTERS' | 'YEAR' | 'YEARS')"`
+	}
+
+	// RefreshTimeInterval is one or more RefreshIntervalPart values, matching
+	// ClickHouse ParserTimeInterval (e.g. `1 WEEK`, `2 DAY 3 HOUR`).
+	RefreshTimeInterval struct {
+		Parts []RefreshIntervalPart `parser:"@@+"`
+	}
+
+	// ViewRefreshDependency is a `[db.]name` entry in DEPENDS ON.
+	ViewRefreshDependency struct {
+		Database *string `parser:"(@(Ident | BacktickIdent) '.')?"`
+		Name     string  `parser:"@(Ident | BacktickIdent)"`
+	}
+
+	// ViewRefreshClause represents the REFRESH strategy on a refreshable
+	// materialized view. Mirrors ClickHouse ParserRefreshStrategy: schedule
+	// (EVERY/AFTER), optional RANDOMIZE FOR / DEPENDS ON / SETTINGS, then APPEND.
+	// CREATE places this clause after ON CLUSTER and before TO / ENGINE.
+	ViewRefreshClause struct {
+		Refresh      string                  `parser:"'REFRESH'"`
+		Kind         string                  `parser:"@('EVERY' | 'AFTER')?"`
+		Period       *RefreshTimeInterval    `parser:"@@?"`
+		Offset       *RefreshTimeInterval    `parser:"('OFFSET' @@)?"`
+		RandomizeFor *RefreshTimeInterval    `parser:"('RANDOMIZE' 'FOR' @@)?"`
+		DependsOn    []ViewRefreshDependency `parser:"('DEPENDS' 'ON' @@ (',' @@)*)?"`
+		Settings     *SettingsClause         `parser:"@@?"`
+		Append       bool                    `parser:"@'APPEND'?"`
+	}
+
 	// CreateViewStmt represents a CREATE VIEW statement.
-	// Supports both regular views and materialized views.
+	// Supports both regular views and materialized views (including refreshable).
 	// ClickHouse syntax:
 	//   CREATE [OR REPLACE] [MATERIALIZED] VIEW [IF NOT EXISTS] [db.]view_name [ON CLUSTER cluster]
-	//   [TO [db.]table_name] [ENGINE = engine] [POPULATE]
+	//   [REFRESH [EVERY|AFTER interval [OFFSET interval]] [RANDOMIZE FOR interval]
+	//            [DEPENDS ON ...] [SETTINGS ...] [APPEND]]
+	//   [TO [db.]table_name] [ENGINE = engine] [POPULATE | EMPTY]
 	//   AS SELECT ...
 	CreateViewStmt struct {
 		LeadingCommentField
-		Create       string           `parser:"'CREATE'"`
-		OrReplace    bool             `parser:"@('OR' 'REPLACE')?"`
-		Materialized bool             `parser:"@'MATERIALIZED'?"`
-		View         string           `parser:"'VIEW'"`
-		IfNotExists  bool             `parser:"@('IF' 'NOT' 'EXISTS')?"`
-		Database     *string          `parser:"(@(Ident | BacktickIdent) '.')?"`
-		Name         string           `parser:"@(Ident | BacktickIdent)"`
-		OnCluster    *string          `parser:"('ON' 'CLUSTER' @(Ident | BacktickIdent | String))?"`
-		To           *ViewTableTarget `parser:"('TO' @@)?"`
-		Engine       *ViewEngine      `parser:"@@?"`
-		Populate     bool             `parser:"@'POPULATE'?"`
-		AsSelect     *SelectStatement `parser:"'AS' @@"`
+		Create       string             `parser:"'CREATE'"`
+		OrReplace    bool               `parser:"@('OR' 'REPLACE')?"`
+		Materialized bool               `parser:"@'MATERIALIZED'?"`
+		View         string             `parser:"'VIEW'"`
+		IfNotExists  bool               `parser:"@('IF' 'NOT' 'EXISTS')?"`
+		Database     *string            `parser:"(@(Ident | BacktickIdent) '.')?"`
+		Name         string             `parser:"@(Ident | BacktickIdent)"`
+		OnCluster    *string            `parser:"('ON' 'CLUSTER' @(Ident | BacktickIdent | String))?"`
+		Refresh      *ViewRefreshClause `parser:"@@?"`
+		To           *ViewTableTarget   `parser:"('TO' @@)?"`
+		Engine       *ViewEngine        `parser:"@@?"`
+		Populate     bool               `parser:"@'POPULATE'?"`
+		Empty        bool               `parser:"@'EMPTY'?"`
+		AsSelect     *SelectStatement   `parser:"'AS' @@"`
 		TrailingCommentField
 		Semicolon bool `parser:"';'"`
 	}

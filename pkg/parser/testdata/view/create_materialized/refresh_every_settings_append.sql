@@ -1,0 +1,4 @@
+CREATE MATERIALIZED VIEW `mv_settings`
+REFRESH EVERY 10 SECOND SETTINGS `refresh_retries` = 3 APPEND
+TO `target_table`
+AS SELECT 1 AS `x`;
