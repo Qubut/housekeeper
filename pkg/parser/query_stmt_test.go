@@ -115,6 +115,8 @@ func TestSelectLimit(t *testing.T) {
 		{name: "basic", sql: `SELECT * FROM users LIMIT 10;`},
 		{name: "offset", sql: `SELECT * FROM users LIMIT 10 OFFSET 20;`},
 		{name: "by", sql: `SELECT * FROM users LIMIT 5 BY category;`},
+		{name: "subquery", sql: `SELECT id, name FROM items ORDER BY score DESC LIMIT (SELECT n FROM batch_caps WHERE name = 'default');`},
+		{name: "subquery_offset", sql: `SELECT id FROM items LIMIT (SELECT n FROM batch_caps WHERE name = 'default') OFFSET 0;`},
 	}
 
 	runStatementTests(t, "query/limit", tests)
@@ -142,6 +144,7 @@ func TestSelectSubquery(t *testing.T) {
 	tests := []statementTest{
 		{name: "from", sql: `SELECT * FROM (SELECT id, name FROM users WHERE active = 1) AS active_users;`},
 		{name: "in", sql: `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);`},
+		{name: "scalar", sql: `SELECT id, (SELECT max(n) FROM batch_caps) AS cap FROM items;`},
 	}
 
 	runStatementTests(t, "query/subquery", tests)

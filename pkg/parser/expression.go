@@ -132,6 +132,9 @@ type (
 		Parameter   *ParameterExpr     `parser:"| @@"`
 		Function    *FunctionCall      `parser:"| @@"`
 		Identifier  *IdentifierExpr    `parser:"| @@"`
+		// Subquery must precede Parentheses/Tuple: all three start with '(',
+		// and (SELECT ...) is a scalar subquery, not a grouped expression.
+		Subquery    *Subquery          `parser:"| @@"`
 		Parentheses *ParenExpression   `parser:"| @@"`
 		Tuple       *TupleExpression   `parser:"| @@"`
 		Array       *ArrayExpression   `parser:"| @@"`
@@ -483,6 +486,9 @@ func (p *PrimaryExpression) String() string {
 	}
 	if p.Identifier != nil {
 		return p.Identifier.String()
+	}
+	if p.Subquery != nil {
+		return p.Subquery.String()
 	}
 	if p.Parentheses != nil {
 		return "(" + p.Parentheses.Expression.String() + ")"
@@ -989,6 +995,14 @@ func (p *PrimaryExpression) Equal(other *PrimaryExpression) bool {
 		return false
 	}
 	if p.Function != nil && !p.Function.Equal(other.Function) {
+		return false
+	}
+
+	// Check Subquery (scalar / LIMIT / projection subquery)
+	if (p.Subquery != nil) != (other.Subquery != nil) {
+		return false
+	}
+	if p.Subquery != nil && p.Subquery.String() != other.Subquery.String() {
 		return false
 	}
 

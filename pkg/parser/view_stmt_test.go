@@ -41,6 +41,7 @@ func TestCreateMaterializedView(t *testing.T) {
 		{name: "refresh_on_cluster_append", sql: `CREATE MATERIALIZED VIEW db.mv_refresh ON CLUSTER '{cluster}' REFRESH EVERY 30 SECONDS APPEND TO db.target_table AS SELECT 1 AS x;`},
 		{name: "refresh_every_empty", sql: `CREATE MATERIALIZED VIEW mv_empty REFRESH EVERY 1 HOUR TO t EMPTY AS SELECT 1 AS x;`},
 		{name: "refresh_multipart_interval", sql: `CREATE MATERIALIZED VIEW mv_multi REFRESH EVERY 1 DAY 2 HOUR TO t AS SELECT 1 AS x;`},
+		{name: "refresh_append_limit_subquery", sql: `CREATE MATERIALIZED VIEW mv_batch ON CLUSTER '{cluster}' REFRESH EVERY 30 SECOND APPEND TO sink AS SELECT id, score FROM candidates ORDER BY score DESC LIMIT (SELECT n FROM batch_caps WHERE name = 'default');`},
 	}
 
 	runStatementTests(t, "view/create_materialized", tests)

@@ -325,6 +325,8 @@ func canonicalPrimaryKey(p *parser.PrimaryExpression) string {
 		return canonicalIdentifierKey(p.Identifier)
 	case p.Function != nil:
 		return canonicalFunctionKey(p.Function)
+	case p.Subquery != nil:
+		return "(SUBQUERY " + selectStatementToString(&p.Subquery.SelectStmt) + ")"
 	case p.Parentheses != nil:
 		return canonicalExprKey(&p.Parentheses.Expression)
 	case p.Tuple != nil:
