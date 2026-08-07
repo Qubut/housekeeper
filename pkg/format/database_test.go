@@ -22,13 +22,13 @@ func TestFormatter_Database(t *testing.T) {
 		},
 		{
 			name:     "create database with options",
-			sql:      "CREATE DATABASE IF NOT EXISTS analytics ON CLUSTER production ENGINE = Atomic COMMENT 'Analytics database';",
-			expected: "CREATE DATABASE IF NOT EXISTS `analytics` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Analytics database';",
+			sql:      "CREATE DATABASE IF NOT EXISTS db ON CLUSTER production ENGINE = Atomic COMMENT 'Sample database';",
+			expected: "CREATE DATABASE IF NOT EXISTS `db` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Sample database';",
 		},
 		{
 			name:     "alter database",
-			sql:      "ALTER DATABASE analytics ON CLUSTER production MODIFY COMMENT 'Updated comment';",
-			expected: "ALTER DATABASE `analytics` ON CLUSTER `production` MODIFY COMMENT 'Updated comment';",
+			sql:      "ALTER DATABASE db ON CLUSTER production MODIFY COMMENT 'Updated comment';",
+			expected: "ALTER DATABASE `db` ON CLUSTER `production` MODIFY COMMENT 'Updated comment';",
 		},
 		{
 			name:     "drop database",

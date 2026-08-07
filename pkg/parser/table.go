@@ -20,7 +20,7 @@ type (
 	//   - Table function: functionName(args...)
 	// Examples:
 	//   - AS users
-	//   - AS analytics.events
+	//   - AS db.events
 	//   - AS remote('host:9000', 'db', 'table')
 	//   - AS s3Table('https://bucket.s3.amazonaws.com/file.csv', 'CSV')
 	//   - AS numbers(1000000)

@@ -77,14 +77,14 @@ CREATE TABLE status_test.events (
 		consts.ModeFile,
 	))
 
-	migration3 := `-- Create analytics table
-CREATE TABLE status_test.analytics (
+	migration3 := `-- Create db table
+CREATE TABLE status_test.db (
     date Date,
     count UInt64
 ) ENGINE = MergeTree() ORDER BY date;
 `
 	require.NoError(t, os.WriteFile(
-		filepath.Join(projectDir, "db", "migrations", "20240101140000_create_analytics.sql"),
+		filepath.Join(projectDir, "db", "migrations", "20240101140000_create_db.sql"),
 		[]byte(migration3),
 		consts.ModeFile,
 	))

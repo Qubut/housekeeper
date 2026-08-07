@@ -1,1 +1,1 @@
-DETACH VIEW `analytics`.`daily_summary`;
+DETACH VIEW `db`.`daily_summary`;

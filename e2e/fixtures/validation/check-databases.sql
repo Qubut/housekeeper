@@ -1,5 +1,5 @@
 -- Verify required databases exist
-SELECT 'analytics_database' as check_name, count(*) as result
+SELECT 'sample_database' as check_name, count(*) as result
 FROM system.databases 
-WHERE name = 'analytics'
+WHERE name = 'db'
 HAVING result = 1;

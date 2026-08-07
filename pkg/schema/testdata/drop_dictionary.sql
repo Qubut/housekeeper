@@ -1,1 +1,1 @@
-DROP DICTIONARY IF EXISTS `analytics`.`temp_dict`;
+DROP DICTIONARY IF EXISTS `db`.`temp_dict`;

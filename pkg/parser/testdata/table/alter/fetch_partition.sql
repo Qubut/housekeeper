@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     FETCH PARTITION '202301' FROM '/clickhouse/tables/events';

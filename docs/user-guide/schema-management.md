@@ -10,7 +10,7 @@ Begin with basic table structures and add complexity as your requirements become
 
 ```sql
 -- Start simple
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     event_type String,
@@ -18,7 +18,7 @@ CREATE TABLE analytics.events (
 ) ENGINE = MergeTree() ORDER BY timestamp;
 
 -- Evolve over time
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     event_type LowCardinality(String),      -- Optimize for repeated values
@@ -80,7 +80,7 @@ Design partitions to optimize query performance and data management:
 
 ```sql
 -- Monthly partitioning for time-series data
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     -- other columns
 )
@@ -99,7 +99,7 @@ PARTITION BY toYear(timestamp)            -- One partition per year
 
 ```sql
 -- Partition by time and category
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     event_type LowCardinality(String),
     -- other columns
@@ -119,10 +119,10 @@ Choose ordering keys based on your query patterns:
 -- For time-series queries by user
 ORDER BY (user_id, timestamp)
 
--- For time-range analytics
+-- For time-range db
 ORDER BY (timestamp, event_type, user_id)
 
--- For user analytics
+-- For user db
 ORDER BY (user_id, timestamp, event_type)
 ```
 
@@ -130,7 +130,7 @@ ORDER BY (user_id, timestamp, event_type)
 
 ```sql
 -- Multi-level ordering for different query types
-CREATE TABLE analytics.user_events (
+CREATE TABLE db.user_events (
     user_id UInt64,
     timestamp DateTime,
     event_type LowCardinality(String),
@@ -150,7 +150,7 @@ PRIMARY KEY (user_id, timestamp);            -- Explicit primary key for perform
 ```sql
 -- Separate databases by business domain
 CREATE DATABASE user_data ENGINE = Atomic COMMENT 'User profiles and authentication';
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Event tracking and analytics';
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Event tracking and db';
 CREATE DATABASE inventory ENGINE = Atomic COMMENT 'Product catalog and inventory';
 CREATE DATABASE financial ENGINE = Atomic COMMENT 'Orders, payments, and billing';
 ```
@@ -159,9 +159,9 @@ CREATE DATABASE financial ENGINE = Atomic COMMENT 'Orders, payments, and billing
 
 ```sql
 -- Environment-specific databases
-CREATE DATABASE prod_analytics ENGINE = Atomic;
-CREATE DATABASE staging_analytics ENGINE = Atomic;
-CREATE DATABASE dev_analytics ENGINE = Atomic;
+CREATE DATABASE prod_db ENGINE = Atomic;
+CREATE DATABASE staging_db ENGINE = Atomic;
+CREATE DATABASE dev_db ENGINE = Atomic;
 ```
 
 ### Table Organization
@@ -178,7 +178,7 @@ CREATE TABLE user_data.users (
 ) ENGINE = ReplacingMergeTree(updated_at) ORDER BY id;
 
 -- Event tracking
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     user_id UInt64,
     timestamp DateTime,
@@ -190,7 +190,7 @@ CREATE TABLE analytics.events (
 
 ```sql
 -- Pre-aggregated data for performance
-CREATE TABLE analytics.daily_user_stats (
+CREATE TABLE db.daily_user_stats (
     date Date,
     user_id UInt64,
     event_count UInt32,
@@ -230,7 +230,7 @@ CREATE ROLE IF NOT EXISTS service_account;
 -- Grant hierarchical permissions
 GRANT SELECT ON *.* TO readonly_user;
 GRANT readonly_user TO data_analyst;
-GRANT SELECT, INSERT ON analytics.* TO data_analyst;
+GRANT SELECT, INSERT ON db.* TO data_analyst;
 
 -- Service-specific roles with resource limits
 CREATE ROLE IF NOT EXISTS api_service
@@ -261,7 +261,7 @@ Global objects are processed first in migrations:
 -- housekeeper:import schemas/_global/roles/main.sql
 
 -- Then database-specific schemas  
--- housekeeper:import schemas/analytics/schema.sql
+-- housekeeper:import schemas/db/schema.sql
 -- housekeeper:import schemas/reporting/schema.sql
 ```
 
@@ -279,7 +279,7 @@ CREATE ROLE IF NOT EXISTS tech_lead;
 
 GRANT SELECT ON system.* TO engineering_base;           -- System monitoring
 GRANT engineering_base TO senior_engineer;
-GRANT CREATE VIEW ON analytics.* TO senior_engineer;    -- Custom analysis
+GRANT CREATE VIEW ON db.* TO senior_engineer;    -- Custom analysis
 GRANT senior_engineer TO tech_lead;
 GRANT ALL ON development.* TO tech_lead;                -- Full dev access
 
@@ -288,7 +288,7 @@ CREATE ROLE IF NOT EXISTS prod_reader;
 CREATE ROLE IF NOT EXISTS staging_writer;
 CREATE ROLE IF NOT EXISTS dev_admin;
 
-GRANT SELECT ON prod_analytics.public_* TO prod_reader;
+GRANT SELECT ON prod_db.public_* TO prod_reader;
 GRANT SELECT, INSERT, UPDATE ON staging_*.* TO staging_writer;  
 GRANT ALL ON dev_*.* TO dev_admin;
 ```
@@ -302,7 +302,7 @@ See [Role Management](role-management.md) for comprehensive role management docu
 Use materialized columns for commonly queried derived values:
 
 ```sql
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     user_id UInt64,
     url String,
@@ -323,7 +323,7 @@ ORDER BY (date, hour, user_id);
 Use Map columns for flexible, schema-less data:
 
 ```sql
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     event_type LowCardinality(String),
@@ -342,7 +342,7 @@ SELECT
     properties['page_url'] as page_url,
     metrics['duration'] as duration,
     flags['is_mobile'] as is_mobile
-FROM analytics.events
+FROM db.events
 WHERE properties['page_url'] LIKE '%checkout%';
 ```
 
@@ -351,7 +351,7 @@ WHERE properties['page_url'] LIKE '%checkout%';
 For structured, repeated data:
 
 ```sql
-CREATE TABLE analytics.user_sessions (
+CREATE TABLE db.user_sessions (
     user_id UInt64,
     session_id String,
     start_time DateTime,
@@ -370,7 +370,7 @@ SELECT
     user_id,
     pages.url,
     pages.duration
-FROM analytics.user_sessions
+FROM db.user_sessions
 ARRAY JOIN pages
 WHERE pages.url LIKE '%product%';
 ```
@@ -381,7 +381,7 @@ Implement data lifecycle management:
 
 ```sql
 -- Table-level TTL
-CREATE TABLE analytics.raw_events (
+CREATE TABLE db.raw_events (
     timestamp DateTime,
     data String
 ) 
@@ -390,15 +390,15 @@ ORDER BY timestamp
 TTL timestamp + INTERVAL 30 DAY;           -- Delete after 30 days
 
 -- Column-level TTL
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     user_id UInt64,
     sensitive_data Nullable(String) TTL timestamp + INTERVAL 7 DAY,  -- GDPR compliance
-    analytics_data String
+    sample_data String
 ) 
 ENGINE = MergeTree() 
 ORDER BY timestamp
-TTL timestamp + INTERVAL 365 DAY;          -- Keep analytics for 1 year
+TTL timestamp + INTERVAL 365 DAY;          -- Keep db for 1 year
 ```
 
 ## Dictionary Patterns
@@ -446,7 +446,7 @@ COMMENT 'Product category hierarchy';
 ### High-Performance Lookups
 
 ```sql
-CREATE DICTIONARY analytics.user_segments_dict (
+CREATE DICTIONARY db.user_segments_dict (
     user_id UInt64 IS_OBJECT_ID,
     segment LowCardinality(String) INJECTIVE,  -- One-to-one mapping
     score Float32,
@@ -469,7 +469,7 @@ COMMENT 'ML-generated user segments';
 
 ```sql
 -- Daily summary view
-CREATE VIEW analytics.daily_summary AS
+CREATE VIEW db.daily_summary AS
 SELECT 
     toDate(timestamp) as date,
     event_type,
@@ -477,17 +477,17 @@ SELECT
     uniq(user_id) as unique_users,
     uniq(session_id) as unique_sessions,
     quantile(0.5)(duration) as median_duration
-FROM analytics.events
+FROM db.events
 WHERE date >= today() - INTERVAL 30 DAY
 GROUP BY date, event_type
 ORDER BY date DESC, event_count DESC;
 ```
 
-### Materialized Views for Real-time Analytics
+### Materialized Views for Real-time aggregation
 
 ```sql
 -- Real-time user activity aggregation
-CREATE MATERIALIZED VIEW analytics.user_activity_mv
+CREATE MATERIALIZED VIEW db.user_activity_mv
 ENGINE = SummingMergeTree((event_count, session_count))
 ORDER BY (date, user_id)
 POPULATE                                   -- Backfill existing data
@@ -497,7 +497,7 @@ AS SELECT
     count() as event_count,
     uniq(session_id) as session_count,
     max(timestamp) as last_activity
-FROM analytics.events
+FROM db.events
 GROUP BY date, user_id;
 ```
 
@@ -505,12 +505,12 @@ GROUP BY date, user_id;
 
 ```sql
 -- User cohort analysis
-CREATE VIEW analytics.user_cohorts AS
+CREATE VIEW db.user_cohorts AS
 WITH user_first_activity AS (
     SELECT 
         user_id,
         min(toDate(timestamp)) as first_activity_date
-    FROM analytics.events
+    FROM db.events
     GROUP BY user_id
 )
 SELECT 
@@ -518,7 +518,7 @@ SELECT
     toDate(e.timestamp) as activity_date,
     dateDiff('day', first_activity_date, toDate(e.timestamp)) as days_since_first,
     count(DISTINCT e.user_id) as active_users
-FROM analytics.events e
+FROM db.events e
 JOIN user_first_activity ufa ON e.user_id = ufa.user_id
 GROUP BY first_activity_date, activity_date, days_since_first
 ORDER BY first_activity_date, days_since_first;
@@ -530,7 +530,7 @@ ORDER BY first_activity_date, days_since_first;
 
 ```sql
 -- Primary index optimization
-CREATE TABLE analytics.user_events (
+CREATE TABLE db.user_events (
     user_id UInt64,
     timestamp DateTime,
     event_type LowCardinality(String)
@@ -545,7 +545,7 @@ SETTINGS index_granularity = 8192;        -- Tune granularity
 
 ```sql
 -- Add skipping indexes for better query performance
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     user_id UInt64,
     event_type LowCardinality(String),
@@ -556,16 +556,16 @@ ORDER BY timestamp
 SETTINGS index_granularity = 8192;
 
 -- Add indexes after table creation
-ALTER TABLE analytics.events ADD INDEX idx_user_id user_id TYPE minmax GRANULARITY 4;
-ALTER TABLE analytics.events ADD INDEX idx_event_type event_type TYPE set(100) GRANULARITY 1;
-ALTER TABLE analytics.events ADD INDEX idx_url_domain domain(url) TYPE bloom_filter GRANULARITY 1;
+ALTER TABLE db.events ADD INDEX idx_user_id user_id TYPE minmax GRANULARITY 4;
+ALTER TABLE db.events ADD INDEX idx_event_type event_type TYPE set(100) GRANULARITY 1;
+ALTER TABLE db.events ADD INDEX idx_url_domain domain(url) TYPE bloom_filter GRANULARITY 1;
 ```
 
 ### Compression Optimization
 
 ```sql
 -- Use appropriate codecs for different data types
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime CODEC(Delta, ZSTD),     -- Delta for timestamps
     user_id UInt64 CODEC(Delta, ZSTD),         -- Delta for sequential IDs
     event_type LowCardinality(String),         -- Already optimized
@@ -579,10 +579,10 @@ CREATE TABLE analytics.events (
 
 ```sql
 -- Add columns with defaults for backwards compatibility
-ALTER TABLE analytics.events ADD COLUMN session_id String DEFAULT '';
+ALTER TABLE db.events ADD COLUMN session_id String DEFAULT '';
 
 -- Use Nullable for optional new columns
-ALTER TABLE analytics.events ADD COLUMN metadata Nullable(String);
+ALTER TABLE db.events ADD COLUMN metadata Nullable(String);
 
 -- Avoid breaking changes
 -- ❌ Don't change column types without migration plan
@@ -593,7 +593,7 @@ ALTER TABLE analytics.events ADD COLUMN metadata Nullable(String);
 
 ```sql
 -- Mark columns as deprecated in comments
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     old_field String COMMENT 'DEPRECATED: Use new_field instead',
     new_field String,
     -- other columns
@@ -610,10 +610,10 @@ CREATE TABLE analytics.events (
 
 ```sql
 -- Include version information in schema
-CREATE DATABASE analytics ENGINE = Atomic 
-COMMENT 'Analytics database v2.1 - Added user segmentation support';
+CREATE DATABASE db ENGINE = Atomic 
+COMMENT 'Sample database v2.1 - Added user segmentation support';
 
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     -- Include schema version in metadata
     schema_version UInt8 DEFAULT 2,
     -- other columns

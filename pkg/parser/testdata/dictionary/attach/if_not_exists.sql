@@ -1,1 +1,1 @@
-ATTACH DICTIONARY IF NOT EXISTS `analytics`.`attach_ifnotexists_dict`;
+ATTACH DICTIONARY IF NOT EXISTS `db`.`attach_ifnotexists_dict`;

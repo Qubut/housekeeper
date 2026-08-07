@@ -1,6 +1,6 @@
-CREATE MATERIALIZED VIEW `analytics`.`mv_hourly`
+CREATE MATERIALIZED VIEW `db`.`mv_hourly`
 REFRESH EVERY 1 HOUR
-TO `analytics`.`hourly_snapshot`
+TO `db`.`hourly_snapshot`
 AS SELECT
     toStartOfHour(`ts`) AS `hour`,
     count() AS `cnt`

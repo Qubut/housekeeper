@@ -19,33 +19,33 @@ func TestGenerateImage(t *testing.T) {
 		{
 			name: "single database with table",
 			sql: `
-				CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics DB';
-				CREATE TABLE analytics.events (
+				CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample DB';
+				CREATE TABLE db.events (
 					id UInt64,
 					name String
 				) ENGINE = MergeTree() ORDER BY id;
 			`,
 			fileTests: []fileTest{
-				{"db/main.sql", "-- housekeeper:import schemas/analytics/schema.sql"},
-				{"db/schemas/analytics/schema.sql", "CREATE DATABASE `analytics` ENGINE = Atomic COMMENT 'Analytics DB'"},
-				{"db/schemas/analytics/schema.sql", "-- housekeeper:import tables/events.sql"},
-				{"db/schemas/analytics/tables/events.sql", "CREATE TABLE `analytics`.`events`"},
-				{"db/schemas/analytics/tables/events.sql", "`id`   UInt64"},
-				{"db/schemas/analytics/tables/events.sql", "`name` String"},
-				{"db/schemas/analytics/tables/events.sql", "ENGINE = MergeTree()"},
-				{"db/schemas/analytics/tables/events.sql", "ORDER BY `id`"},
+				{"db/main.sql", "-- housekeeper:import schemas/db/schema.sql"},
+				{"db/schemas/db/schema.sql", "CREATE DATABASE `db` ENGINE = Atomic COMMENT 'Sample DB'"},
+				{"db/schemas/db/schema.sql", "-- housekeeper:import tables/events.sql"},
+				{"db/schemas/db/tables/events.sql", "CREATE TABLE `db`.`events`"},
+				{"db/schemas/db/tables/events.sql", "`id`   UInt64"},
+				{"db/schemas/db/tables/events.sql", "`name` String"},
+				{"db/schemas/db/tables/events.sql", "ENGINE = MergeTree()"},
+				{"db/schemas/db/tables/events.sql", "ORDER BY `id`"},
 			},
 		},
 		{
 			name: "multiple databases with mixed objects",
 			sql: `
-				CREATE DATABASE analytics ENGINE = Atomic;
+				CREATE DATABASE db ENGINE = Atomic;
 				CREATE DATABASE users ENGINE = Atomic;
 
-				CREATE TABLE analytics.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
+				CREATE TABLE db.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
 				CREATE TABLE users.profiles (id UInt64) ENGINE = MergeTree() ORDER BY id;
 
-				CREATE DICTIONARY analytics.lookup (
+				CREATE DICTIONARY db.lookup (
 					id UInt64 IS_OBJECT_ID,
 					name String
 				) PRIMARY KEY id
@@ -56,49 +56,49 @@ func TestGenerateImage(t *testing.T) {
 				CREATE VIEW users.active AS SELECT * FROM profiles WHERE active = 1;
 			`,
 			fileTests: []fileTest{
-				{"db/main.sql", "-- housekeeper:import schemas/analytics/schema.sql"},
+				{"db/main.sql", "-- housekeeper:import schemas/db/schema.sql"},
 				{"db/main.sql", "-- housekeeper:import schemas/users/schema.sql"},
-				{"db/schemas/analytics/schema.sql", "CREATE DATABASE `analytics` ENGINE = Atomic"},
-				{"db/schemas/analytics/schema.sql", "-- housekeeper:import tables/events.sql"},
-				{"db/schemas/analytics/schema.sql", "-- housekeeper:import dictionaries/lookup.sql"},
+				{"db/schemas/db/schema.sql", "CREATE DATABASE `db` ENGINE = Atomic"},
+				{"db/schemas/db/schema.sql", "-- housekeeper:import tables/events.sql"},
+				{"db/schemas/db/schema.sql", "-- housekeeper:import dictionaries/lookup.sql"},
 				{"db/schemas/users/schema.sql", "CREATE DATABASE `users` ENGINE = Atomic"},
 				{"db/schemas/users/schema.sql", "-- housekeeper:import tables/profiles.sql"},
 				{"db/schemas/users/schema.sql", "-- housekeeper:import views/active.sql"},
-				{"db/schemas/analytics/tables/events.sql", "`id` UInt64"},
+				{"db/schemas/db/tables/events.sql", "`id` UInt64"},
 				{"db/schemas/users/tables/profiles.sql", "`id` UInt64"},
-				{"db/schemas/analytics/dictionaries/lookup.sql", "CREATE DICTIONARY `analytics`.`lookup`"},
-				{"db/schemas/analytics/dictionaries/lookup.sql", "PRIMARY KEY `id`"},
+				{"db/schemas/db/dictionaries/lookup.sql", "CREATE DICTIONARY `db`.`lookup`"},
+				{"db/schemas/db/dictionaries/lookup.sql", "PRIMARY KEY `id`"},
 				{"db/schemas/users/views/active.sql", "CREATE VIEW `users`.`active`"},
 			},
 		},
 		{
 			name: "roles and grants are organized in _global",
 			sql: `
-				CREATE DATABASE analytics ENGINE = Atomic;
+				CREATE DATABASE db ENGINE = Atomic;
 
 				CREATE ROLE admin_role;
 				CREATE ROLE readonly_role;
 
 				GRANT SELECT ON *.* TO readonly_role;
-				GRANT ALL ON analytics.* TO admin_role;
+				GRANT ALL ON db.* TO admin_role;
 				GRANT readonly_role TO admin_role;
 
-				CREATE TABLE analytics.users (id UInt64) ENGINE = MergeTree() ORDER BY id;
+				CREATE TABLE db.users (id UInt64) ENGINE = MergeTree() ORDER BY id;
 			`,
 			fileTests: []fileTest{
 				{"db/main.sql", "-- housekeeper:import schemas/_global/schema.sql"},
-				{"db/main.sql", "-- housekeeper:import schemas/analytics/schema.sql"},
+				{"db/main.sql", "-- housekeeper:import schemas/db/schema.sql"},
 				{"db/schemas/_global/schema.sql", "-- Global objects"},
 				{"db/schemas/_global/schema.sql", "-- Roles and Permissions"},
 				{"db/schemas/_global/schema.sql", "-- housekeeper:import roles/admin_role.sql"},
 				{"db/schemas/_global/schema.sql", "-- housekeeper:import roles/readonly_role.sql"},
 				{"db/schemas/_global/roles/admin_role.sql", "CREATE ROLE `admin_role`"},
-				{"db/schemas/_global/roles/admin_role.sql", "GRANT ALL ON `analytics`.*"},
+				{"db/schemas/_global/roles/admin_role.sql", "GRANT ALL ON `db`.*"},
 				{"db/schemas/_global/roles/admin_role.sql", "GRANT `readonly_role` TO `admin_role`"},
 				{"db/schemas/_global/roles/readonly_role.sql", "CREATE ROLE `readonly_role`"},
 				{"db/schemas/_global/roles/readonly_role.sql", "GRANT `SELECT` ON *.* TO `readonly_role`"},
-				{"db/schemas/analytics/schema.sql", "CREATE DATABASE `analytics`"},
-				{"db/schemas/analytics/tables/users.sql", "CREATE TABLE `analytics`.`users`"},
+				{"db/schemas/db/schema.sql", "CREATE DATABASE `db`"},
+				{"db/schemas/db/tables/users.sql", "CREATE TABLE `db`.`users`"},
 			},
 		},
 		{
@@ -154,11 +154,11 @@ type fileTest struct {
 
 func TestGenerateImage_FileStructure(t *testing.T) {
 	sql := `
-		CREATE DATABASE analytics ENGINE = Atomic;
+		CREATE DATABASE db ENGINE = Atomic;
 		CREATE NAMED COLLECTION api_config AS host = 'api.example.com', port = 8080;
-		CREATE TABLE analytics.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
-		CREATE DICTIONARY analytics.lookup (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://example.com')) LAYOUT(HASHED()) LIFETIME(3600);
-		CREATE VIEW analytics.summary AS SELECT count() FROM events;
+		CREATE TABLE db.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
+		CREATE DICTIONARY db.lookup (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://example.com')) LAYOUT(HASHED()) LIFETIME(3600);
+		CREATE VIEW db.summary AS SELECT count() FROM events;
 	`
 
 	parsed, err := parser.ParseString(sql)
@@ -189,10 +189,10 @@ func TestGenerateImage_FileStructure(t *testing.T) {
 	// Expected file structure
 	expectedFiles := []string{
 		"db/main.sql",
-		"db/schemas/analytics/schema.sql",
-		"db/schemas/analytics/tables/events.sql",
-		"db/schemas/analytics/dictionaries/lookup.sql",
-		"db/schemas/analytics/views/summary.sql",
+		"db/schemas/db/schema.sql",
+		"db/schemas/db/tables/events.sql",
+		"db/schemas/db/dictionaries/lookup.sql",
+		"db/schemas/db/views/summary.sql",
 	}
 
 	require.ElementsMatch(t, expectedFiles, files)
@@ -227,8 +227,8 @@ func TestGetDatabase(t *testing.T) {
 		},
 		{
 			name:     "non-empty database returns value",
-			database: stringPtr("analytics"),
-			expected: "analytics",
+			database: stringPtr("db"),
+			expected: "db",
 		},
 	}
 

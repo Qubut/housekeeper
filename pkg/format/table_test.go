@@ -30,9 +30,9 @@ func TestFormatter_Table(t *testing.T) {
 		},
 		{
 			name: "qualified table name",
-			sql:  "CREATE TABLE analytics.events (id UInt64, timestamp DateTime) ENGINE = MergeTree() ORDER BY timestamp;",
+			sql:  "CREATE TABLE db.events (id UInt64, timestamp DateTime) ENGINE = MergeTree() ORDER BY timestamp;",
 			expected: []string{
-				"CREATE TABLE `analytics`.`events` (",
+				"CREATE TABLE `db`.`events` (",
 				"    `id`        UInt64,",
 				"    `timestamp` DateTime",
 				")",

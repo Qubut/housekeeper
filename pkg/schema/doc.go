@@ -39,7 +39,7 @@
 // Example usage:
 //
 //	// Parse current schema (from ClickHouse or existing SQL files)
-//	currentSQL, _ := parser.ParseString("CREATE DATABASE analytics;")
+//	currentSQL, _ := parser.ParseString("CREATE DATABASE db;")
 //
 //	// Parse target schema (from SQL string or file)
 //	targetSQL, _ := parser.ParseString(targetSchemaString)

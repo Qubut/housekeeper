@@ -1,1 +1,1 @@
-ATTACH DICTIONARY IF NOT EXISTS `analytics`.`attach_full_dict` ON CLUSTER `production`;
+ATTACH DICTIONARY IF NOT EXISTS `db`.`attach_full_dict` ON CLUSTER `production`;

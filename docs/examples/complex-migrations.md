@@ -13,8 +13,8 @@ This guide covers advanced migration scenarios that go beyond simple table addit
 When migrations involve multiple databases with dependencies:
 
 ```sql
--- schemas/analytics/schema.sql
-CREATE DATABASE analytics ENGINE = Atomic;
+-- schemas/db/schema.sql
+CREATE DATABASE db ENGINE = Atomic;
 
 -- housekeeper:import tables/events.sql
 -- housekeeper:import tables/users.sql
@@ -25,7 +25,7 @@ CREATE DATABASE analytics ENGINE = Atomic;
 -- schemas/reporting/schema.sql
 CREATE DATABASE reporting ENGINE = Atomic;
 
--- This view depends on analytics database
+-- This view depends on sample database
 -- housekeeper:import views/executive_dashboard.sql
 ```
 
@@ -39,9 +39,9 @@ Ensure proper database creation order in main entrypoint:
 -- housekeeper:import schemas/reference/schema.sql
 
 -- 2. Core data (limited dependencies) 
--- housekeeper:import schemas/analytics/schema.sql
+-- housekeeper:import schemas/db/schema.sql
 
--- 3. Derived data (depends on analytics)
+-- 3. Derived data (depends on db)
 -- housekeeper:import schemas/reporting/schema.sql
 ```
 

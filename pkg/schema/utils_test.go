@@ -100,7 +100,7 @@ func TestNormalizeDefaultDatabase(t *testing.T) {
 func TestGetViewTableTargetValue_DefaultDB(t *testing.T) {
 	tbl := "events"
 	defDB := "default"
-	otherDB := "analytics"
+	otherDB := "db"
 	backtickedDef := "`default`"
 
 	cases := []struct {
@@ -112,7 +112,7 @@ func TestGetViewTableTargetValue_DefaultDB(t *testing.T) {
 		{"unqualified table", &parser.ViewTableTarget{Table: &tbl}, "events"},
 		{"default db stripped", &parser.ViewTableTarget{Database: &defDB, Table: &tbl}, "events"},
 		{"backticked default db stripped", &parser.ViewTableTarget{Database: &backtickedDef, Table: &tbl}, "events"},
-		{"non-default db kept", &parser.ViewTableTarget{Database: &otherDB, Table: &tbl}, "analytics.events"},
+		{"non-default db kept", &parser.ViewTableTarget{Database: &otherDB, Table: &tbl}, "db.events"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

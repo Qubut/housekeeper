@@ -48,9 +48,9 @@ func TestLoadMigration(t *testing.T) {
 		{
 			name:    "complex_migration",
 			version: "003_complex_schema",
-			sql: `CREATE DATABASE analytics ENGINE = Atomic;
+			sql: `CREATE DATABASE db ENGINE = Atomic;
 
-				  CREATE TABLE analytics.users (
+				  CREATE TABLE db.users (
 					  id UInt64,
 					  email String,
 					  created_at DateTime DEFAULT now(),
@@ -59,7 +59,7 @@ func TestLoadMigration(t *testing.T) {
 				  ORDER BY (id, created_at)
 				  PARTITION BY toYYYYMM(created_at);
 
-				  CREATE DICTIONARY analytics.user_dict (
+				  CREATE DICTIONARY db.user_dict (
 					  id UInt64 IS_OBJECT_ID,
 					  email String INJECTIVE
 				  ) PRIMARY KEY id
@@ -67,10 +67,10 @@ func TestLoadMigration(t *testing.T) {
 				  LAYOUT(HASHED())
 				  LIFETIME(3600);
 
-				  CREATE MATERIALIZED VIEW analytics.daily_stats
+				  CREATE MATERIALIZED VIEW db.daily_stats
 				  ENGINE = MergeTree() ORDER BY date
 				  AS SELECT toDate(created_at), count()
-				  FROM analytics.users GROUP BY toDate(created_at);`,
+				  FROM db.users GROUP BY toDate(created_at);`,
 			wantErr:     false,
 			stmtCount:   4,
 			description: "Complex migration with multiple object types should parse",
@@ -785,8 +785,8 @@ func TestMigrationDir_Validate_RehashConsistency(t *testing.T) {
 func TestMigrationDir_Validate_ComplexMigrations(t *testing.T) {
 	// Test with more complex migration content including unicode
 	files := map[string]string{
-		"20240101120000.sql": `CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics with unicode: special chars';`,
-		"20240101120100.sql": `CREATE TABLE analytics.events (
+		"20240101120000.sql": `CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample with unicode: special chars';`,
+		"20240101120100.sql": `CREATE TABLE db.events (
 			id UInt64,
 			timestamp DateTime DEFAULT now(),
 			data Map(String, String) DEFAULT map(),
@@ -794,10 +794,10 @@ func TestMigrationDir_Validate_ComplexMigrations(t *testing.T) {
 		) ENGINE = MergeTree()
 		ORDER BY (id, timestamp)
 		PARTITION BY toYYYYMM(timestamp);`,
-		"20240101120200.sql": `CREATE MATERIALIZED VIEW analytics.daily_stats
+		"20240101120200.sql": `CREATE MATERIALIZED VIEW db.daily_stats
 		ENGINE = MergeTree() ORDER BY date
 		AS SELECT toDate(timestamp), count()
-		FROM analytics.events GROUP BY toDate(timestamp);`,
+		FROM db.events GROUP BY toDate(timestamp);`,
 	}
 
 	fsys := make(fstest.MapFS)

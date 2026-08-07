@@ -99,7 +99,7 @@ func TestRefreshCreateMigrationIncludesRefreshClause(t *testing.T) {
 	require.NoError(t, err)
 
 	target, err := parser.ParseString(
-		`CREATE MATERIALIZED VIEW analytics.mv_refresh ON CLUSTER '{cluster}' REFRESH EVERY 30 SECOND APPEND TO analytics.target_table AS SELECT 1 AS x;`,
+		`CREATE MATERIALIZED VIEW db.mv_refresh ON CLUSTER '{cluster}' REFRESH EVERY 30 SECOND APPEND TO db.target_table AS SELECT 1 AS x;`,
 	)
 	require.NoError(t, err)
 

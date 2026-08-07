@@ -1,1 +1,1 @@
-DETACH TABLE `analytics`.`mv_old` ON CLUSTER `analytics_cluster` PERMANENTLY SYNC;
+DETACH TABLE `db`.`mv_old` ON CLUSTER `db_cluster` PERMANENTLY SYNC;

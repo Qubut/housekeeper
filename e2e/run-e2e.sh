@@ -381,7 +381,7 @@ Test Summary:
   Container ID: $CONTAINER_ID
   
 Schema Objects Created:
-  • Databases: 2 (housekeeper, analytics)
+  • Databases: 2 (housekeeper, db)
   • Tables: 3 (revisions, users, events)  
   • Dictionaries: 2 (user_status_dict, geo_data)
   • Views: 1 (daily_stats materialized view)

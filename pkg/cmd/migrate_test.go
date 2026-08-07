@@ -42,7 +42,7 @@ schema: "db/main.sql"
 
 	// Create main schema file
 	schema := `-- Main schema file
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 `
 	require.NoError(t, os.WriteFile(
 		filepath.Join(projectDir, "db", "main.sql"),
@@ -52,9 +52,9 @@ CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
 
 	// Create test migrations
 	migration1 := `-- Create database and users table
-CREATE DATABASE IF NOT EXISTS analytics ENGINE = Atomic COMMENT 'Analytics database';
+CREATE DATABASE IF NOT EXISTS db ENGINE = Atomic COMMENT 'Sample database';
 
-CREATE TABLE analytics.users (
+CREATE TABLE db.users (
     id UInt64,
     name String,
     email String,
@@ -70,7 +70,7 @@ COMMENT 'User profiles';
 	))
 
 	migration2 := `-- Create events table
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UInt64,
     user_id UInt64,
     event_type String,
@@ -115,20 +115,20 @@ COMMENT 'User events';
 		defer rows.Close()
 		require.True(t, rows.Next())
 
-		// Check analytics database
-		rows, err = client.Query(ctx, "SELECT 1 FROM system.databases WHERE name = 'analytics'")
+		// Check sample database
+		rows, err = client.Query(ctx, "SELECT 1 FROM system.databases WHERE name = 'db'")
 		require.NoError(t, err)
 		defer rows.Close()
 		require.True(t, rows.Next())
 
 		// Check users table
-		rows, err = client.Query(ctx, "SELECT 1 FROM system.tables WHERE database = 'analytics' AND name = 'users'")
+		rows, err = client.Query(ctx, "SELECT 1 FROM system.tables WHERE database = 'db' AND name = 'users'")
 		require.NoError(t, err)
 		defer rows.Close()
 		require.True(t, rows.Next())
 
 		// Check events table
-		rows, err = client.Query(ctx, "SELECT 1 FROM system.tables WHERE database = 'analytics' AND name = 'events'")
+		rows, err = client.Query(ctx, "SELECT 1 FROM system.tables WHERE database = 'db' AND name = 'events'")
 		require.NoError(t, err)
 		defer rows.Close()
 		require.True(t, rows.Next())
@@ -167,7 +167,7 @@ COMMENT 'User events';
 	t.Run("dry run", func(t *testing.T) {
 		// Add a new migration
 		migration3 := `-- Add index to users table
-ALTER TABLE analytics.users ADD INDEX idx_email email TYPE minmax GRANULARITY 4;
+ALTER TABLE db.users ADD INDEX idx_email email TYPE minmax GRANULARITY 4;
 `
 		require.NoError(t, os.WriteFile(
 			filepath.Join(projectDir, "db", "migrations", "20240101140000_add_user_index.sql"),

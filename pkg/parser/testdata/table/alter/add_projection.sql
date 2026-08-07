@@ -1,4 +1,4 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     ADD PROJECTION `user_stats` (SELECT
     `user_id`,
     count() AS `event_count`

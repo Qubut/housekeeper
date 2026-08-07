@@ -9,7 +9,7 @@ func TestCreateTable(t *testing.T) {
 		// Basic
 		{name: "basic", sql: `CREATE TABLE users (id UInt64, name String, email String) ENGINE = MergeTree() ORDER BY id;`},
 		{name: "simple_engine", sql: `CREATE TABLE logs (timestamp DateTime, level String, message String) ENGINE = Log();`},
-		{name: "with_database", sql: `CREATE TABLE analytics.events (id UInt64, user_id UInt64) ENGINE = MergeTree() ORDER BY id;`},
+		{name: "with_database", sql: `CREATE TABLE db.events (id UInt64, user_id UInt64) ENGINE = MergeTree() ORDER BY id;`},
 
 		// Complex types
 		{name: "complex_types", sql: `CREATE TABLE user_profiles (
@@ -33,7 +33,7 @@ func TestCreateTable(t *testing.T) {
 		) ENGINE = MergeTree() ORDER BY (device_id, created_at);`},
 
 		// Full options
-		{name: "full_options", sql: `CREATE OR REPLACE TABLE IF NOT EXISTS analytics.events ON CLUSTER production (
+		{name: "full_options", sql: `CREATE OR REPLACE TABLE IF NOT EXISTS db.events ON CLUSTER production (
 			id UInt64,
 			user_id UInt64,
 			event_type LowCardinality(String),
@@ -107,7 +107,7 @@ func TestCreateTable(t *testing.T) {
 		{name: "as_basic", sql: `CREATE TABLE copy AS source ENGINE = MergeTree() ORDER BY id;`},
 		{name: "as_with_database", sql: `CREATE TABLE db1.table_copy AS db2.source_table ENGINE = Memory;`},
 		{name: "as_on_cluster", sql: `CREATE TABLE events_distributed ON CLUSTER production AS events_local ENGINE = Distributed(production, currentDatabase(), events_local, rand());`},
-		{name: "as_full_options", sql: `CREATE OR REPLACE TABLE IF NOT EXISTS analytics.events_all ON CLUSTER analytics_cluster AS analytics.events_local ENGINE = Distributed(analytics_cluster, analytics, events_local, cityHash64(user_id)) SETTINGS index_granularity = 8192 COMMENT 'Distributed view of events_local';`},
+		{name: "as_full_options", sql: `CREATE OR REPLACE TABLE IF NOT EXISTS db.events_all ON CLUSTER db_cluster AS db.events_local ENGINE = Distributed(db_cluster, db, events_local, cityHash64(user_id)) SETTINGS index_granularity = 8192 COMMENT 'Distributed view of events_local';`},
 
 		// CREATE TABLE AS with table functions
 		{name: "as_remote", sql: `CREATE TABLE remote_copy AS remote('host:9000', 'db', 'table') ENGINE = MergeTree() ORDER BY id;`},
@@ -150,36 +150,36 @@ func TestAlterTable(t *testing.T) {
 		{name: "delete", sql: `ALTER TABLE logs DELETE WHERE timestamp < now();`},
 
 		// TTL operations
-		{name: "modify_ttl", sql: `ALTER TABLE analytics.events MODIFY TTL timestamp + days(30);`},
-		{name: "delete_ttl", sql: `ALTER TABLE analytics.events DELETE TTL;`},
+		{name: "modify_ttl", sql: `ALTER TABLE db.events MODIFY TTL timestamp + days(30);`},
+		{name: "delete_ttl", sql: `ALTER TABLE db.events DELETE TTL;`},
 
 		// Structure operations
 		{name: "modify_order_by", sql: `ALTER TABLE measurements MODIFY ORDER BY (device_identifier, created_at, id);`},
-		{name: "modify_sample_by", sql: `ALTER TABLE analytics.events MODIFY SAMPLE BY user_id;`},
-		{name: "remove_sample_by", sql: `ALTER TABLE analytics.events REMOVE SAMPLE BY;`},
+		{name: "modify_sample_by", sql: `ALTER TABLE db.events MODIFY SAMPLE BY user_id;`},
+		{name: "remove_sample_by", sql: `ALTER TABLE db.events REMOVE SAMPLE BY;`},
 
 		// Settings operations
-		{name: "modify_setting", sql: `ALTER TABLE analytics.events MODIFY SETTING index_granularity = 16384;`},
-		{name: "reset_setting", sql: `ALTER TABLE analytics.events RESET SETTING index_granularity;`},
+		{name: "modify_setting", sql: `ALTER TABLE db.events MODIFY SETTING index_granularity = 16384;`},
+		{name: "reset_setting", sql: `ALTER TABLE db.events RESET SETTING index_granularity;`},
 
 		// Partition operations
-		{name: "attach_partition", sql: `ALTER TABLE analytics.events ATTACH PARTITION '202301';`},
-		{name: "detach_partition", sql: `ALTER TABLE analytics.events DETACH PARTITION '202301';`},
-		{name: "drop_partition", sql: `ALTER TABLE analytics.events DROP PARTITION '202301';`},
-		{name: "freeze", sql: `ALTER TABLE analytics.events FREEZE;`},
-		{name: "freeze_partition", sql: `ALTER TABLE analytics.events FREEZE PARTITION '202301';`},
-		{name: "freeze_with_name", sql: `ALTER TABLE analytics.events FREEZE WITH NAME 'backup_20240101';`},
-		{name: "fetch_partition", sql: `ALTER TABLE analytics.events FETCH PARTITION '202301' FROM '/clickhouse/tables/events';`},
-		{name: "move_partition_to_table", sql: `ALTER TABLE analytics.events MOVE PARTITION '202301' TO TABLE analytics.events_archive;`},
-		{name: "move_partition_to_disk", sql: `ALTER TABLE analytics.events MOVE PARTITION '202301' TO DISK 'cold_storage';`},
-		{name: "replace_partition", sql: `ALTER TABLE analytics.events REPLACE PARTITION '202301' FROM analytics.events_backup;`},
+		{name: "attach_partition", sql: `ALTER TABLE db.events ATTACH PARTITION '202301';`},
+		{name: "detach_partition", sql: `ALTER TABLE db.events DETACH PARTITION '202301';`},
+		{name: "drop_partition", sql: `ALTER TABLE db.events DROP PARTITION '202301';`},
+		{name: "freeze", sql: `ALTER TABLE db.events FREEZE;`},
+		{name: "freeze_partition", sql: `ALTER TABLE db.events FREEZE PARTITION '202301';`},
+		{name: "freeze_with_name", sql: `ALTER TABLE db.events FREEZE WITH NAME 'backup_20240101';`},
+		{name: "fetch_partition", sql: `ALTER TABLE db.events FETCH PARTITION '202301' FROM '/clickhouse/tables/events';`},
+		{name: "move_partition_to_table", sql: `ALTER TABLE db.events MOVE PARTITION '202301' TO TABLE db.events_archive;`},
+		{name: "move_partition_to_disk", sql: `ALTER TABLE db.events MOVE PARTITION '202301' TO DISK 'cold_storage';`},
+		{name: "replace_partition", sql: `ALTER TABLE db.events REPLACE PARTITION '202301' FROM db.events_backup;`},
 
 		// Projection operations
-		{name: "add_projection", sql: `ALTER TABLE analytics.events ADD PROJECTION user_stats (SELECT user_id, count() AS event_count GROUP BY user_id);`},
-		{name: "drop_projection", sql: `ALTER TABLE analytics.events DROP PROJECTION user_stats;`},
+		{name: "add_projection", sql: `ALTER TABLE db.events ADD PROJECTION user_stats (SELECT user_id, count() AS event_count GROUP BY user_id);`},
+		{name: "drop_projection", sql: `ALTER TABLE db.events DROP PROJECTION user_stats;`},
 
 		// Multiple operations
-		{name: "multiple_operations", sql: `ALTER TABLE analytics.events ADD COLUMN session_id UUID, DROP COLUMN tags, RENAME COLUMN data TO event_data, COMMENT COLUMN timestamp 'Event timestamp';`},
+		{name: "multiple_operations", sql: `ALTER TABLE db.events ADD COLUMN session_id UUID, DROP COLUMN tags, RENAME COLUMN data TO event_data, COMMENT COLUMN timestamp 'Event timestamp';`},
 
 		// On cluster
 		{name: "on_cluster", sql: `ALTER TABLE logs ON CLUSTER production ADD COLUMN server_id String;`},
@@ -193,10 +193,10 @@ func TestAttachTable(t *testing.T) {
 
 	tests := []statementTest{
 		{name: "basic", sql: `ATTACH TABLE users;`},
-		{name: "with_database", sql: `ATTACH TABLE analytics.events;`},
+		{name: "with_database", sql: `ATTACH TABLE db.events;`},
 		{name: "if_not_exists", sql: `ATTACH TABLE IF NOT EXISTS temp_table;`},
 		{name: "on_cluster", sql: `ATTACH TABLE measurements ON CLUSTER production;`},
-		{name: "full_options", sql: `ATTACH TABLE IF NOT EXISTS analytics.old_events ON CLUSTER production;`},
+		{name: "full_options", sql: `ATTACH TABLE IF NOT EXISTS db.old_events ON CLUSTER production;`},
 	}
 
 	runStatementTests(t, "table/attach", tests)
@@ -210,7 +210,7 @@ func TestDetachTable(t *testing.T) {
 		{name: "if_exists", sql: `DETACH TABLE IF EXISTS temp_table;`},
 		{name: "permanently", sql: `DETACH TABLE old_data PERMANENTLY;`},
 		{name: "sync", sql: `DETACH TABLE user_profiles SYNC;`},
-		{name: "full_options", sql: `DETACH TABLE IF EXISTS analytics.old_events ON CLUSTER production PERMANENTLY SYNC;`},
+		{name: "full_options", sql: `DETACH TABLE IF EXISTS db.old_events ON CLUSTER production PERMANENTLY SYNC;`},
 	}
 
 	runStatementTests(t, "table/detach", tests)
@@ -225,8 +225,8 @@ func TestDropTable(t *testing.T) {
 		{name: "on_cluster", sql: `DROP TABLE measurements ON CLUSTER production;`},
 		{name: "on_cluster_macro", sql: `DROP TABLE IF EXISTS events ON CLUSTER '{cluster}';`},
 		{name: "sync", sql: `DROP TABLE user_profiles SYNC;`},
-		{name: "full_options", sql: `DROP TABLE IF EXISTS analytics.old_events ON CLUSTER production SYNC;`},
-		{name: "with_backticks", sql: "DROP TABLE IF EXISTS `analytics-db`.`user-events` ON CLUSTER `prod-cluster`;"},
+		{name: "full_options", sql: `DROP TABLE IF EXISTS db.old_events ON CLUSTER production SYNC;`},
+		{name: "with_backticks", sql: "DROP TABLE IF EXISTS `app-db`.`user-events` ON CLUSTER `prod-cluster`;"},
 	}
 
 	runStatementTests(t, "table/drop", tests)
@@ -237,7 +237,7 @@ func TestRenameTable(t *testing.T) {
 
 	tests := []statementTest{
 		{name: "single", sql: `RENAME TABLE users TO users_old;`},
-		{name: "with_database", sql: `RENAME TABLE analytics.events TO analytics.events_archive;`},
+		{name: "with_database", sql: `RENAME TABLE db.events TO db.events_archive;`},
 		{name: "across_databases", sql: `RENAME TABLE staging.logs TO production.logs;`},
 		{name: "multiple", sql: `RENAME TABLE table1 TO table1_backup, table2 TO table2_backup;`},
 		{name: "on_cluster", sql: `RENAME TABLE measurements TO measurements_legacy ON CLUSTER production;`},

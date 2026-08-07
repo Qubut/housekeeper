@@ -1,1 +1,1 @@
-RENAME TABLE `analytics`.`events` TO `analytics`.`events_archive`;
+RENAME TABLE `db`.`events` TO `db`.`events_archive`;

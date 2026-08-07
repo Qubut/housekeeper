@@ -170,14 +170,14 @@ clickhouse:
   ignore_databases:
     - testing_db
     - staging_db
-    - temp_analytics
+    - temp_db
 entrypoint: test.sql
 dir: migrations
 `
 		config, err := LoadConfig(strings.NewReader(yamlData))
 		require.NoError(t, err)
 		require.Len(t, config.ClickHouse.IgnoreDatabases, 3)
-		require.Equal(t, []string{"testing_db", "staging_db", "temp_analytics"}, config.ClickHouse.IgnoreDatabases)
+		require.Equal(t, []string{"testing_db", "staging_db", "temp_db"}, config.ClickHouse.IgnoreDatabases)
 	})
 
 	t.Run("empty ignore_databases when not specified", func(t *testing.T) {

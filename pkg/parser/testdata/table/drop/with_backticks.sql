@@ -1,1 +1,1 @@
-DROP TABLE `analytics-db`.`user-events` ON CLUSTER `prod-cluster`;
+DROP TABLE `app-db`.`user-events` ON CLUSTER `prod-cluster`;

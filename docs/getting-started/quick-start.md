@@ -33,11 +33,11 @@ my-clickhouse-project/
 Edit the `db/main.sql` file to define your ClickHouse schema:
 
 ```sql
--- Create analytics database
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- Create sample database
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 
 -- Create users table
-CREATE TABLE analytics.users (
+CREATE TABLE db.users (
     id UInt64,
     email String,
     name String,
@@ -48,7 +48,7 @@ ORDER BY id
 SETTINGS index_granularity = 8192;
 
 -- Create events table  
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     user_id UInt64,
     event_type LowCardinality(String),
@@ -61,14 +61,14 @@ TTL timestamp + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 
 -- Create daily summary view
-CREATE MATERIALIZED VIEW analytics.daily_summary
+CREATE MATERIALIZED VIEW db.daily_summary
 ENGINE = MergeTree() ORDER BY date
 AS SELECT 
     toDate(timestamp) as date,
     event_type,
     count() as event_count,
     uniq(user_id) as unique_users
-FROM analytics.events
+FROM db.events
 GROUP BY date, event_type;
 ```
 
@@ -112,11 +112,11 @@ Example migration content:
 ```sql
 -- Schema migration generated at 2024-01-01 12:00:00 UTC
 
--- Create database 'analytics'
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- Create database 'db'
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 
--- Create table 'analytics.users'
-CREATE TABLE analytics.users (
+-- Create table 'db.users'
+CREATE TABLE db.users (
     id UInt64,
     email String,
     name String,
@@ -126,8 +126,8 @@ CREATE TABLE analytics.users (
 ORDER BY id
 SETTINGS index_granularity = 8192;
 
--- Create table 'analytics.events'
-CREATE TABLE analytics.events (
+-- Create table 'db.events'
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     user_id UInt64,
     event_type LowCardinality(String),
@@ -139,15 +139,15 @@ ORDER BY (timestamp, event_type)
 TTL timestamp + INTERVAL 90 DAY
 SETTINGS index_granularity = 8192;
 
--- Create materialized view 'analytics.daily_summary'
-CREATE MATERIALIZED VIEW analytics.daily_summary
+-- Create materialized view 'db.daily_summary'
+CREATE MATERIALIZED VIEW db.daily_summary
 ENGINE = MergeTree() ORDER BY date
 AS SELECT 
     toDate(timestamp) as date,
     event_type,
     count() as event_count,
     uniq(user_id) as unique_users
-FROM analytics.events
+FROM db.events
 GROUP BY date, event_type;
 ```
 
@@ -178,7 +178,7 @@ Add this to your `db/main.sql`:
 
 ```sql
 -- Add after the events table
-CREATE TABLE analytics.products (
+CREATE TABLE db.products (
     id UInt64,
     name String,
     category_id UInt32,

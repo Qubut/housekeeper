@@ -486,7 +486,7 @@ This regenerates YAML files from parsing results, making it easy to:
 
 **Input (`table_complex.sql`):**
 ```sql
-CREATE TABLE analytics.events ON CLUSTER my_cluster (
+CREATE TABLE db.events ON CLUSTER my_cluster (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     properties Map(String, String) DEFAULT map(),
@@ -501,7 +501,7 @@ TTL timestamp + INTERVAL 90 DAY;
 ```yaml
 statements:
 - create_table:
-    database: analytics
+    database: db
     name: events
     on_cluster: my_cluster
     columns:

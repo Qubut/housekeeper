@@ -93,7 +93,7 @@ func TestIsSystemDatabase(t *testing.T) {
 		{"system database", "system", true},
 		{"INFORMATION_SCHEMA", "INFORMATION_SCHEMA", true},
 		{"information_schema", "information_schema", true},
-		{"regular database", "analytics", false},
+		{"regular database", "db", false},
 		{"empty database", "", false},
 		{"custom database", "my_db", false},
 	}
@@ -119,7 +119,7 @@ func TestValidateTableOperation(t *testing.T) {
 			current: nil,
 			target: &TableInfo{
 				Name:     "events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("MergeTree"),
 			},
 			expectError: false,
@@ -128,12 +128,12 @@ func TestValidateTableOperation(t *testing.T) {
 			name: "valid - integration engine modification (uses DROP+CREATE)",
 			current: &TableInfo{
 				Name:     "kafka_events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Kafka"),
 			},
 			target: &TableInfo{
 				Name:     "kafka_events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Kafka"),
 				Columns: []ColumnInfo{
 					{Name: "new_col", DataType: makeDataType("String")},
@@ -146,7 +146,7 @@ func TestValidateTableOperation(t *testing.T) {
 			current: nil,
 			target: &TableInfo{
 				Name:     "mysql_users",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("MySQL"),
 			},
 			expectError: false,
@@ -155,13 +155,13 @@ func TestValidateTableOperation(t *testing.T) {
 			name: "invalid - cluster change",
 			current: &TableInfo{
 				Name:     "events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("MergeTree"),
 				Cluster:  "staging",
 			},
 			target: &TableInfo{
 				Name:     "events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("MergeTree"),
 				Cluster:  "production",
 			},
@@ -172,12 +172,12 @@ func TestValidateTableOperation(t *testing.T) {
 			name: "invalid - engine change",
 			current: &TableInfo{
 				Name:     "events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("MergeTree"),
 			},
 			target: &TableInfo{
 				Name:     "events",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("ReplacingMergeTree"),
 			},
 			expectError: true,
@@ -215,7 +215,7 @@ func TestValidateTableOperation(t *testing.T) {
 			current: nil,
 			target: &TableInfo{
 				Name:       "events_distributed",
-				Database:   "analytics",
+				Database:   "db",
 				Engine:     makeEngine("Distributed"),
 				PrimaryKey: makeExpression("id"),
 			},
@@ -227,7 +227,7 @@ func TestValidateTableOperation(t *testing.T) {
 			current: nil,
 			target: &TableInfo{
 				Name:        "buffer_table",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("Buffer"),
 				PrimaryKey:  makeExpression("id"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
@@ -240,7 +240,7 @@ func TestValidateTableOperation(t *testing.T) {
 			current: nil,
 			target: &TableInfo{
 				Name:     "events_distributed",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Distributed"),
 			},
 			expectError: false,
@@ -273,21 +273,21 @@ func TestValidateDatabaseOperation(t *testing.T) {
 			name:    "valid operation - database creation",
 			current: nil,
 			target: &DatabaseInfo{
-				Name:    "analytics",
+				Name:    "db",
 				Engine:  "Atomic",
-				Comment: "Analytics database",
+				Comment: "Sample database",
 			},
 			expectError: false,
 		},
 		{
 			name: "invalid - cluster change",
 			current: &DatabaseInfo{
-				Name:    "analytics",
+				Name:    "db",
 				Engine:  "Atomic",
 				Cluster: "staging",
 			},
 			target: &DatabaseInfo{
-				Name:    "analytics",
+				Name:    "db",
 				Engine:  "Atomic",
 				Cluster: "production",
 			},
@@ -297,11 +297,11 @@ func TestValidateDatabaseOperation(t *testing.T) {
 		{
 			name: "invalid - engine change",
 			current: &DatabaseInfo{
-				Name:   "analytics",
+				Name:   "db",
 				Engine: "Atomic",
 			},
 			target: &DatabaseInfo{
-				Name:   "analytics",
+				Name:   "db",
 				Engine: "Memory",
 			},
 			expectError: true,
@@ -360,7 +360,7 @@ func TestValidateDictionaryOperation(t *testing.T) {
 			current: nil,
 			target: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 			},
 			expectError: false,
 		},
@@ -368,7 +368,7 @@ func TestValidateDictionaryOperation(t *testing.T) {
 			name: "valid operation - dictionary drop",
 			current: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 			},
 			target:      nil,
 			expectError: false,
@@ -377,11 +377,11 @@ func TestValidateDictionaryOperation(t *testing.T) {
 			name: "valid operation - dictionary replacement",
 			current: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 			},
 			target: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 				Comment:  "Modified comment",
 			},
 			expectError: false, // Dictionary replacements are allowed
@@ -390,12 +390,12 @@ func TestValidateDictionaryOperation(t *testing.T) {
 			name: "invalid - cluster change",
 			current: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 				Cluster:  "staging",
 			},
 			target: &DictionaryInfo{
 				Name:     "users_dict",
-				Database: "analytics",
+				Database: "db",
 				Cluster:  "production",
 			},
 			expectError: true,
@@ -454,7 +454,7 @@ func TestValidateViewOperation(t *testing.T) {
 			current: nil,
 			target: &ViewInfo{
 				Name:     "daily_stats",
-				Database: "analytics",
+				Database: "db",
 				Query:    "SELECT date, count(*) FROM events GROUP BY date",
 			},
 			expectError: false,
@@ -463,12 +463,12 @@ func TestValidateViewOperation(t *testing.T) {
 			name: "invalid - cluster change",
 			current: &ViewInfo{
 				Name:     "daily_stats",
-				Database: "analytics",
+				Database: "db",
 				Cluster:  "staging",
 			},
 			target: &ViewInfo{
 				Name:     "daily_stats",
-				Database: "analytics",
+				Database: "db",
 				Cluster:  "production",
 			},
 			expectError: true,
@@ -478,13 +478,13 @@ func TestValidateViewOperation(t *testing.T) {
 			name: "valid - materialized view query change (uses DROP+CREATE)",
 			current: &ViewInfo{
 				Name:           "mv_stats",
-				Database:       "analytics",
+				Database:       "db",
 				IsMaterialized: true,
 				Query:          "SELECT date, count(*) FROM events GROUP BY date",
 			},
 			target: &ViewInfo{
 				Name:           "mv_stats",
-				Database:       "analytics",
+				Database:       "db",
 				IsMaterialized: true,
 				Query:          "SELECT date, count(*), sum(amount) FROM events GROUP BY date",
 			},
@@ -494,13 +494,13 @@ func TestValidateViewOperation(t *testing.T) {
 			name: "valid - regular view query change",
 			current: &ViewInfo{
 				Name:           "daily_stats",
-				Database:       "analytics",
+				Database:       "db",
 				IsMaterialized: false,
 				Query:          "SELECT date, count(*) FROM events GROUP BY date",
 			},
 			target: &ViewInfo{
 				Name:           "daily_stats",
-				Database:       "analytics",
+				Database:       "db",
 				IsMaterialized: false,
 				Query:          "SELECT date, count(*), sum(amount) FROM events GROUP BY date",
 			},
@@ -548,7 +548,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "valid - MergeTree with all clauses",
 			table: &TableInfo{
 				Name:        "events",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("MergeTree"),
 				PrimaryKey:  makeExpression("id"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
@@ -561,7 +561,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "valid - ReplicatedMergeTree with all clauses",
 			table: &TableInfo{
 				Name:        "events",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("ReplicatedMergeTree"),
 				PrimaryKey:  makeExpression("id"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
@@ -574,7 +574,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "valid - Memory with ORDER BY and PRIMARY KEY",
 			table: &TableInfo{
 				Name:       "temp_data",
-				Database:   "analytics",
+				Database:   "db",
 				Engine:     makeEngine("Memory"),
 				PrimaryKey: makeExpression("id"),
 				OrderBy:    makeExpression("id"),
@@ -585,7 +585,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "valid - Distributed with only ENGINE",
 			table: &TableInfo{
 				Name:     "events_distributed",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Distributed"),
 			},
 			expectError: false,
@@ -594,7 +594,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Distributed with PRIMARY KEY",
 			table: &TableInfo{
 				Name:       "events_distributed",
-				Database:   "analytics",
+				Database:   "db",
 				Engine:     makeEngine("Distributed"),
 				PrimaryKey: makeExpression("id"),
 			},
@@ -606,7 +606,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Distributed with PARTITION BY",
 			table: &TableInfo{
 				Name:        "events_distributed",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("Distributed"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
 			},
@@ -618,7 +618,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Distributed with ORDER BY",
 			table: &TableInfo{
 				Name:     "events_distributed",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Distributed"),
 				OrderBy:  makeExpression("id"),
 			},
@@ -630,7 +630,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Distributed with SAMPLE BY",
 			table: &TableInfo{
 				Name:     "events_distributed",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Distributed"),
 				SampleBy: makeExpression("id"),
 			},
@@ -642,7 +642,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Distributed with multiple invalid clauses",
 			table: &TableInfo{
 				Name:        "events_distributed",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("Distributed"),
 				PrimaryKey:  makeExpression("id"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
@@ -656,7 +656,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Buffer with PRIMARY KEY",
 			table: &TableInfo{
 				Name:       "buffer_table",
-				Database:   "analytics",
+				Database:   "db",
 				Engine:     makeEngine("Buffer"),
 				PrimaryKey: makeExpression("id"),
 			},
@@ -668,7 +668,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Dictionary engine with ORDER BY",
 			table: &TableInfo{
 				Name:     "dict_table",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Dictionary"),
 				OrderBy:  makeExpression("id"),
 			},
@@ -680,7 +680,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - View engine with PARTITION BY",
 			table: &TableInfo{
 				Name:        "view_table",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("View"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
 			},
@@ -692,7 +692,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - LiveView with SAMPLE BY",
 			table: &TableInfo{
 				Name:     "live_view",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("LiveView"),
 				SampleBy: makeExpression("id"),
 			},
@@ -704,7 +704,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Memory with PARTITION BY",
 			table: &TableInfo{
 				Name:        "memory_table",
-				Database:    "analytics",
+				Database:    "db",
 				Engine:      makeEngine("Memory"),
 				PartitionBy: makeExpression("toYYYYMM(date)"),
 			},
@@ -716,7 +716,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "invalid - Memory with SAMPLE BY",
 			table: &TableInfo{
 				Name:     "memory_table",
-				Database: "analytics",
+				Database: "db",
 				Engine:   makeEngine("Memory"),
 				SampleBy: makeExpression("id"),
 			},
@@ -728,7 +728,7 @@ func TestValidateTableClauses(t *testing.T) {
 			name: "valid - nil engine",
 			table: &TableInfo{
 				Name:       "no_engine",
-				Database:   "analytics",
+				Database:   "db",
 				Engine:     nil,
 				PrimaryKey: makeExpression("id"),
 			},

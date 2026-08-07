@@ -144,8 +144,8 @@ func TestFormatSQL_Function(t *testing.T) {
 		},
 		{
 			name:     "complex_statements",
-			sql:      "CREATE DATABASE analytics; CREATE DICTIONARY analytics.users_dict (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://example.com')) LAYOUT(HASHED()) LIFETIME(3600);",
-			expected: "CREATE DATABASE `analytics`;\n\nCREATE DICTIONARY `analytics`.`users_dict` (\n    `id` UInt64\n)\nPRIMARY KEY `id`\nSOURCE(HTTP(url 'http://example.com'))\nLAYOUT(HASHED())\nLIFETIME(3600);",
+			sql:      "CREATE DATABASE db; CREATE DICTIONARY db.users_dict (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://example.com')) LAYOUT(HASHED()) LIFETIME(3600);",
+			expected: "CREATE DATABASE `db`;\n\nCREATE DICTIONARY `db`.`users_dict` (\n    `id` UInt64\n)\nPRIMARY KEY `id`\nSOURCE(HTTP(url 'http://example.com'))\nLAYOUT(HASHED())\nLIFETIME(3600);",
 		},
 	}
 

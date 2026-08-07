@@ -1,1 +1,1 @@
-RENAME DICTIONARY `analytics`.`old_users_dict` TO `analytics`.`users_dict`;
+RENAME DICTIONARY `db`.`old_users_dict` TO `db`.`users_dict`;

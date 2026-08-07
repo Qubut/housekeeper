@@ -154,7 +154,7 @@ validate_schema_objects() {
 
   # Validate tables (excluding system)
   local actual_tables
-  actual_tables=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.tables WHERE database IN ('housekeeper', 'analytics')" "TSV")
+  actual_tables=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.tables WHERE database IN ('housekeeper', 'db')" "TSV")
 
   if [[ "$actual_tables" -ne "$expected_tables" ]]; then
     error "Expected $expected_tables tables, found $actual_tables"
@@ -162,7 +162,7 @@ validate_schema_objects() {
 
   # Validate dictionaries
   local actual_dictionaries
-  actual_dictionaries=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.dictionaries WHERE database = 'analytics'" "TSV")
+  actual_dictionaries=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.dictionaries WHERE database = 'db'" "TSV")
 
   if [[ "$actual_dictionaries" -ne "$expected_dictionaries" ]]; then
     error "Expected $expected_dictionaries dictionaries, found $actual_dictionaries"
@@ -170,7 +170,7 @@ validate_schema_objects() {
 
   # Validate views (materialized + regular)
   local actual_views
-  actual_views=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.tables WHERE database = 'analytics' AND engine LIKE '%View%'" "TSV")
+  actual_views=$(execute_clickhouse_query "$dsn" "SELECT count(*) FROM system.tables WHERE database = 'db' AND engine LIKE '%View%'" "TSV")
 
   if [[ "$actual_views" -ne "$expected_views" ]]; then
     error "Expected $expected_views views, found $actual_views"
@@ -198,14 +198,14 @@ generate_validation_report() {
     echo
 
     echo "--- Tables ---"
-    execute_clickhouse_query "$dsn" "SELECT database, name, engine FROM system.tables WHERE database IN ('housekeeper', 'analytics') ORDER BY database, name" "TSV" |
+    execute_clickhouse_query "$dsn" "SELECT database, name, engine FROM system.tables WHERE database IN ('housekeeper', 'db') ORDER BY database, name" "TSV" |
       while IFS=$'\t' read -r database name engine; do
         echo "  $database.$name ($engine)"
       done
     echo
 
     echo "--- Dictionaries ---"
-    execute_clickhouse_query "$dsn" "SELECT database, name, status FROM system.dictionaries WHERE database = 'analytics' ORDER BY name" "TSV" |
+    execute_clickhouse_query "$dsn" "SELECT database, name, status FROM system.dictionaries WHERE database = 'db' ORDER BY name" "TSV" |
       while IFS=$'\t' read -r database name status; do
         echo "  $database.$name ($status)"
       done

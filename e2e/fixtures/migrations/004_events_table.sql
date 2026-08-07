@@ -1,5 +1,5 @@
 -- Events table with complex schema and TTL
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UInt64,
     user_id UInt64,
     session_id String,

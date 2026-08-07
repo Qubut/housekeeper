@@ -1,4 +1,4 @@
 -- Current state: no database exists
 ;
--- Target state: create new analytics database
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- Target state: create new sample database
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';

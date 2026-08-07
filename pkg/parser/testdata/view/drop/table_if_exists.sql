@@ -1,1 +1,1 @@
-DROP TABLE `analytics`.`mv_aggregated`;
+DROP TABLE `db`.`mv_aggregated`;

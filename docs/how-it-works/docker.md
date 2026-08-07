@@ -279,8 +279,8 @@ func TestSchemaEvolution(t *testing.T) {
     
     // Apply initial schema
     initialSchema := `
-        CREATE DATABASE analytics ENGINE = Atomic;
-        CREATE TABLE analytics.events (
+        CREATE DATABASE db ENGINE = Atomic;
+        CREATE TABLE db.events (
             id UUID DEFAULT generateUUIDv4(),
             timestamp DateTime,
             event_type String
@@ -295,7 +295,7 @@ func TestSchemaEvolution(t *testing.T) {
     
     // Insert test data
     err = dm.Exec(ctx, `
-        INSERT INTO analytics.events (timestamp, event_type) VALUES
+        INSERT INTO db.events (timestamp, event_type) VALUES
         ('2024-01-01 12:00:00', 'page_view'),
         ('2024-01-01 12:01:00', 'click')
     `)
@@ -303,8 +303,8 @@ func TestSchemaEvolution(t *testing.T) {
     
     // Evolve schema - add new column
     evolvedSchema := `
-        CREATE DATABASE analytics ENGINE = Atomic;
-        CREATE TABLE analytics.events (
+        CREATE DATABASE db ENGINE = Atomic;
+        CREATE TABLE db.events (
             id UUID DEFAULT generateUUIDv4(),
             timestamp DateTime,
             event_type String,
@@ -320,7 +320,7 @@ func TestSchemaEvolution(t *testing.T) {
     require.NoError(t, err)
     
     // Verify data integrity after schema change
-    result, err := dm.Query(ctx, "SELECT count(), max(user_id) FROM analytics.events")
+    result, err := dm.Query(ctx, "SELECT count(), max(user_id) FROM db.events")
     require.NoError(t, err)
     
     parts := strings.Fields(strings.TrimSpace(result))
@@ -329,12 +329,12 @@ func TestSchemaEvolution(t *testing.T) {
     
     // Test new column functionality
     err = dm.Exec(ctx, `
-        INSERT INTO analytics.events (timestamp, event_type, user_id) 
+        INSERT INTO db.events (timestamp, event_type, user_id) 
         VALUES ('2024-01-01 12:02:00', 'purchase', 123)
     `)
     require.NoError(t, err)
     
-    result, err = dm.Query(ctx, "SELECT user_id FROM analytics.events WHERE event_type = 'purchase'")
+    result, err = dm.Query(ctx, "SELECT user_id FROM db.events WHERE event_type = 'purchase'")
     require.NoError(t, err)
     require.Equal(t, "123", strings.TrimSpace(result))
 }

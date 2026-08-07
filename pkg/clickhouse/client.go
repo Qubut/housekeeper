@@ -56,7 +56,7 @@ type (
 //	defer client.Close()
 //
 //	// Full DSN with authentication and database
-//	client, err := clickhouse.NewClient(ctx, "clickhouse://user:pass@localhost:9000/analytics?dial_timeout=10s")
+//	client, err := clickhouse.NewClient(ctx, "clickhouse://user:pass@localhost:9000/db?dial_timeout=10s")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -164,10 +164,10 @@ func (c *Client) Close() error {
 // Example:
 //
 //	migrationSQL := `
-//		CREATE DATABASE analytics ENGINE = Atomic;
-//		CREATE DICTIONARY analytics.users (id UInt64) PRIMARY KEY id
+//		CREATE DATABASE db ENGINE = Atomic;
+//		CREATE DICTIONARY db.users (id UInt64) PRIMARY KEY id
 //		SOURCE(HTTP(url 'http://api.example.com/users')) LAYOUT(HASHED()) LIFETIME(3600);
-//		RENAME DATABASE old_analytics TO analytics_backup;
+//		RENAME DATABASE old_db TO db_backup;
 //	`
 //
 //	err := client.ExecuteMigration(ctx, migrationSQL)

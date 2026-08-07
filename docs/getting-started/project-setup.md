@@ -27,7 +27,7 @@ my-clickhouse-project/
 │       │   └── collections/  # Named collection definitions
 │       │       ├── api_configs.sql
 │       │       └── kafka_configs.sql
-│       ├── analytics/
+│       ├── db/
 │       │   ├── schema.sql    # Database definition
 │       │   ├── tables/       # Table definitions
 │       │   │   ├── events.sql
@@ -79,40 +79,40 @@ Your `db/main.sql` serves as the entrypoint:
 -- This file coordinates all schema imports
 
 -- Import database definitions first
--- housekeeper:import schemas/analytics/schema.sql
+-- housekeeper:import schemas/db/schema.sql
 -- housekeeper:import schemas/logs/schema.sql
 
 -- Import table definitions
--- housekeeper:import schemas/analytics/tables/users.sql
--- housekeeper:import schemas/analytics/tables/events.sql
--- housekeeper:import schemas/analytics/tables/products.sql
+-- housekeeper:import schemas/db/tables/users.sql
+-- housekeeper:import schemas/db/tables/events.sql
+-- housekeeper:import schemas/db/tables/products.sql
 
 -- Import dictionaries
--- housekeeper:import schemas/analytics/dictionaries/countries.sql
--- housekeeper:import schemas/analytics/dictionaries/categories.sql
+-- housekeeper:import schemas/db/dictionaries/countries.sql
+-- housekeeper:import schemas/db/dictionaries/categories.sql
 
 -- Import views (depends on tables and dictionaries)
--- housekeeper:import schemas/analytics/views/daily_stats.sql
--- housekeeper:import schemas/analytics/views/user_summary.sql
+-- housekeeper:import schemas/db/views/daily_stats.sql
+-- housekeeper:import schemas/db/views/user_summary.sql
 ```
 
 ### Database Schema Files
 
-`db/schemas/analytics/schema.sql`:
+`db/schemas/db/schema.sql`:
 ```sql
--- Analytics database definition
-CREATE DATABASE analytics 
+-- Sample database definition
+CREATE DATABASE db 
 ON CLUSTER my_cluster 
 ENGINE = Atomic 
-COMMENT 'Analytics and user behavior database';
+COMMENT 'Reporting and user behavior database';
 ```
 
 ### Table Definition Files
 
-`db/schemas/analytics/tables/users.sql`:
+`db/schemas/db/tables/users.sql`:
 ```sql
 -- User profiles table
-CREATE TABLE analytics.users ON CLUSTER my_cluster (
+CREATE TABLE db.users ON CLUSTER my_cluster (
     id UInt64,
     email String,
     name String,
@@ -121,7 +121,7 @@ CREATE TABLE analytics.users ON CLUSTER my_cluster (
     status LowCardinality(String) DEFAULT 'active',
     metadata Map(String, String) DEFAULT map(),
     
-    -- Materialized columns for analytics
+    -- Materialized columns for db
     signup_month UInt32 MATERIALIZED toYYYYMM(created_at),
     email_domain String MATERIALIZED splitByChar('@', email)[2]
 ) 
@@ -131,10 +131,10 @@ PARTITION BY signup_month
 SETTINGS index_granularity = 8192;
 ```
 
-`db/schemas/analytics/tables/events.sql`:
+`db/schemas/db/tables/events.sql`:
 ```sql
 -- User event tracking table
-CREATE TABLE analytics.events ON CLUSTER my_cluster (
+CREATE TABLE db.events ON CLUSTER my_cluster (
     id UUID DEFAULT generateUUIDv4(),
     user_id UInt64,
     event_type LowCardinality(String),
@@ -155,10 +155,10 @@ SETTINGS index_granularity = 8192;
 
 ### Dictionary Definition Files
 
-`db/schemas/analytics/dictionaries/countries.sql`:
+`db/schemas/db/dictionaries/countries.sql`:
 ```sql
 -- Country lookup dictionary
-CREATE DICTIONARY analytics.countries_dict ON CLUSTER my_cluster (
+CREATE DICTIONARY db.countries_dict ON CLUSTER my_cluster (
     country_code String,
     country_name String,
     continent String,
@@ -177,10 +177,10 @@ COMMENT 'Country reference data from external API';
 
 ### View Definition Files
 
-`db/schemas/analytics/views/daily_stats.sql`:
+`db/schemas/db/views/daily_stats.sql`:
 ```sql
--- Daily analytics summary view
-CREATE MATERIALIZED VIEW analytics.daily_stats ON CLUSTER my_cluster
+-- Daily db summary view
+CREATE MATERIALIZED VIEW db.daily_stats ON CLUSTER my_cluster
 ENGINE = MergeTree() 
 ORDER BY (date, event_type)
 POPULATE
@@ -192,7 +192,7 @@ AS SELECT
     uniq(session_id) as unique_sessions,
     countIf(user_id = 0) as anonymous_events,
     quantile(0.5)(length(JSONExtractString(properties, 'page_url'))) as median_url_length
-FROM analytics.events
+FROM db.events
 WHERE date >= today() - INTERVAL 90 DAY
 GROUP BY date, event_type;
 ```
@@ -213,7 +213,7 @@ Given this structure:
 db/
 ├── main.sql
 └── schemas/
-    └── analytics/
+    └── db/
         ├── schema.sql
         └── tables/
             └── users.sql
@@ -221,16 +221,16 @@ db/
 
 In `db/main.sql`:
 ```sql
--- housekeeper:import schemas/analytics/schema.sql
+-- housekeeper:import schemas/db/schema.sql
 ```
 
-In `db/schemas/analytics/schema.sql`:
+In `db/schemas/db/schema.sql`:
 ```sql
-CREATE DATABASE analytics ENGINE = Atomic;
+CREATE DATABASE db ENGINE = Atomic;
 -- housekeeper:import tables/users.sql
 ```
 
-The path `tables/users.sql` is resolved relative to `db/schemas/analytics/schema.sql`, resulting in `db/schemas/analytics/tables/users.sql`.
+The path `tables/users.sql` is resolved relative to `db/schemas/db/schema.sql`, resulting in `db/schemas/db/tables/users.sql`.
 
 ## Environment-Specific Configuration
 

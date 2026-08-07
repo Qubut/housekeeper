@@ -125,7 +125,7 @@ clickhouse:
   # Databases to exclude from schema operations
   ignore_databases:                  # Useful for test/staging databases
     - testing_db
-    - temp_analytics
+    - temp_db
 ```
 
 ### Schema Configuration
@@ -153,7 +153,7 @@ clickhouse:
   ignore_databases:
     - testing_db        # Development testing database
     - staging_temp      # Temporary staging experiments
-    - analytics_v1      # Old version being phased out
+    - schema_v1      # Old version being phased out
 ```
 
 Ignored databases will be completely excluded from:
@@ -283,7 +283,7 @@ Override configuration values via command-line flags:
 housekeeper diff \
   --host clickhouse-prod.example.com \
   --port 9440 \
-  --database analytics \
+  --database db \
   --username admin \
   --cluster production
 
@@ -366,7 +366,7 @@ Configure users and permissions:
             <profile>default</profile>
             <quota>default</quota>
             <allow_databases>
-                <database>analytics</database>
+                <database>db</database>
                 <database>reporting</database>
             </allow_databases>
             <access_management>1</access_management>
@@ -378,7 +378,7 @@ Configure users and permissions:
             <profile>readonly</profile>
             <quota>default</quota>
             <allow_databases>
-                <database>analytics</database>
+                <database>db</database>
             </allow_databases>
         </app_user>
     </users>

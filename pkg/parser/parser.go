@@ -277,8 +277,8 @@ func Parse(reader io.Reader) (*SQL, error) {
 // Example usage:
 //
 //	sql := `
-//		CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
-//		CREATE TABLE analytics.events (
+//		CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
+//		CREATE TABLE db.events (
 //			id UInt64,
 //			user_id UInt64,
 //			event_type LowCardinality(String),
@@ -289,23 +289,23 @@ func Parse(reader io.Reader) (*SQL, error) {
 //		ORDER BY (user_id, timestamp)
 //		PARTITION BY toYYYYMM(timestamp)
 //		SETTINGS index_granularity = 8192;
-//		CREATE DICTIONARY analytics.users_dict (
+//		CREATE DICTIONARY db.users_dict (
 //			id UInt64 IS_OBJECT_ID,
 //			name String INJECTIVE
 //		) PRIMARY KEY id
 //		SOURCE(HTTP(url 'http://api.example.com/users'))
 //		LAYOUT(HASHED())
 //		LIFETIME(3600);
-//		CREATE MATERIALIZED VIEW analytics.daily_stats
+//		CREATE MATERIALIZED VIEW db.daily_stats
 //		ENGINE = MergeTree() ORDER BY date
 //		POPULATE
 //		AS SELECT toDate(timestamp) as date, count() as cnt
-//		FROM analytics.events
+//		FROM db.events
 //		GROUP BY date;
-//		ALTER DATABASE analytics MODIFY COMMENT 'Updated analytics database';
-//		RENAME DATABASE analytics TO prod_analytics;
-//		RENAME DICTIONARY prod_analytics.users_dict TO prod_analytics.user_data;
-//		RENAME TABLE analytics.old_view TO analytics.new_view;
+//		ALTER DATABASE db MODIFY COMMENT 'Updated sample database';
+//		RENAME DATABASE db TO prod_db;
+//		RENAME DICTIONARY prod_db.users_dict TO prod_db.user_data;
+//		RENAME TABLE db.old_view TO db.new_view;
 //	`
 //
 //	sqlResult, err := parser.ParseString(sql)

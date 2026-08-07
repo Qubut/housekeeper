@@ -131,7 +131,7 @@ main() {
   local post_migration="999_post_snapshot_test.sql"
   cat >"db/migrations/$post_migration" <<'EOF'
 -- Test post-snapshot migration
-CREATE VIEW IF NOT EXISTS analytics.snapshot_test_view AS 
+CREATE VIEW IF NOT EXISTS db.snapshot_test_view AS 
 SELECT 'snapshot_test' as test_marker;
 EOF
 
@@ -141,7 +141,7 @@ EOF
 
   # Verify post-snapshot migration worked
   local test_view_count
-  test_view_count=$(execute_clickhouse_query "$CLICKHOUSE_DSN" "SELECT count(*) FROM system.tables WHERE database = 'analytics' AND name = 'snapshot_test_view'" "TSV")
+  test_view_count=$(execute_clickhouse_query "$CLICKHOUSE_DSN" "SELECT count(*) FROM system.tables WHERE database = 'db' AND name = 'snapshot_test_view'" "TSV")
 
   if [[ "$test_view_count" -ne 1 ]]; then
     error "Post-snapshot migration failed - test view not created"
@@ -150,7 +150,7 @@ EOF
   log_success "Post-snapshot migration successful"
 
   # Cleanup test view
-  execute_clickhouse_query "$CLICKHOUSE_DSN" "DROP VIEW IF EXISTS analytics.snapshot_test_view" >/dev/null
+  execute_clickhouse_query "$CLICKHOUSE_DSN" "DROP VIEW IF EXISTS db.snapshot_test_view" >/dev/null
   rm -f "db/migrations/$post_migration"
 
   # Final state validation

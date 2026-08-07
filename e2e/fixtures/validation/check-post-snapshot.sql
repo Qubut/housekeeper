@@ -1,7 +1,7 @@
 -- Verify post-snapshot migration and mixed revision types
 SELECT 'active_users_view' as check_name, count(*) as result
 FROM system.tables
-WHERE database = 'analytics' AND name = 'active_users'
+WHERE database = 'db' AND name = 'active_users'
 HAVING result = 1
 
 UNION ALL

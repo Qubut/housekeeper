@@ -147,7 +147,7 @@ The E2E test suite uses custom migration management to work with test credential
 **Purpose**: Test basic migration functionality
 
 **Migrations**:
-- `001_initial.sql`: Analytics database creation
+- `001_initial.sql`: Sample database creation
 - `002_users_table.sql`: Users table with complex ClickHouse features
 - `003_basic_dictionary.sql`: Basic dictionary with HTTP source
 
@@ -158,7 +158,7 @@ The E2E test suite uses custom migration management to work with test credential
 - Check revision records
 
 **Validation**:
-- Analytics database exists
+- Sample database exists
 - Users table created with correct schema
 - Dictionary created and functional
 - All revisions recorded as successful
@@ -231,7 +231,7 @@ The E2E test suite uses custom migration management to work with test credential
 - Test sum file integrity
 
 **Expected Final State**:
-- **Databases**: 2 (housekeeper, analytics, existing_db from bootstrap)
+- **Databases**: 2 (housekeeper, db, existing_db from bootstrap)
 - **Tables**: 6 (revisions, users, events, countries, daily_stats MV, active_users view)
 - **Dictionaries**: 2 (user_status_dict, geo_data)
 - **Migration Files**: 2 (snapshot + post-snapshot)
@@ -334,14 +334,14 @@ Example validation query:
 ```sql
 SELECT 'table_exists' as check_name, count(*) as result
 FROM system.tables
-WHERE database = 'analytics' AND name = 'users'
+WHERE database = 'db' AND name = 'users'
 HAVING result = 1
 
 UNION ALL
 
 SELECT 'table_has_columns' as check_name, count(*) as result  
 FROM system.columns
-WHERE database = 'analytics' AND table = 'users'
+WHERE database = 'db' AND table = 'users'
 HAVING result >= 5;
 ```
 

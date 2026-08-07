@@ -252,11 +252,11 @@ Housekeeper automatically handles partial migration failures, but you may need t
 **What happens when a migration fails partway through?**
 
 ```sql
--- Migration: 20240101120000_setup_analytics.sql
-CREATE DATABASE analytics;              -- ✅ Statement 1: Success
-CREATE TABLE analytics.events (...);    -- ✅ Statement 2: Success  
-CREATE TABLE analytics.users (...);     -- ❌ Statement 3: Failed
-CREATE VIEW analytics.summary (...);    -- ⏸  Statement 4: Not executed
+-- Migration: 20240101120000_setup_db.sql
+CREATE DATABASE db;              -- ✅ Statement 1: Success
+CREATE TABLE db.events (...);    -- ✅ Statement 2: Success  
+CREATE TABLE db.users (...);     -- ❌ Statement 3: Failed
+CREATE VIEW db.summary (...);    -- ⏸  Statement 4: Not executed
 ```
 
 Housekeeper automatically:
@@ -286,7 +286,7 @@ echo "SELECT version, applied, total, error, executed_at FROM housekeeper.revisi
 ```bash
 Found 1 partially applied migration(s) that will be resumed:
 
-  ⚠️  20240101120000_setup_analytics: 2/4 statements applied
+  ⚠️  20240101120000_setup_db: 2/4 statements applied
      Last error: Table 'users' already exists
      Will resume with 2 remaining statement(s)
 ```
@@ -309,7 +309,7 @@ Found 1 partially applied migration(s) that will be resumed:
    # ✅ Either restore original file or create new migration
    
    # Option 1: Restore original migration file
-   git checkout db/migrations/20240101120000_setup_analytics.sql
+   git checkout db/migrations/20240101120000_setup_db.sql
    
    # Option 2: Create new migration with remaining changes
    housekeeper diff  # Generates new migration with remaining changes
@@ -326,10 +326,10 @@ Found 1 partially applied migration(s) that will be resumed:
    # Restore original file or clean up partial state
    
    # Option 1: Restore original file
-   git checkout db/migrations/20240101120000_setup_analytics.sql
+   git checkout db/migrations/20240101120000_setup_db.sql
    
    # Option 2: Manually clean up partial state (advanced)
-   DELETE FROM housekeeper.revisions WHERE version = '20240101120000_setup_analytics';
+   DELETE FROM housekeeper.revisions WHERE version = '20240101120000_setup_db';
    ```
 
 3. **Dependency Issues During Resume**:
@@ -340,7 +340,7 @@ Found 1 partially applied migration(s) that will be resumed:
    **Solution**: Check if dependent objects were created successfully
    ```sql
    -- Check which objects exist
-   SELECT name FROM system.tables WHERE database = 'analytics';
+   SELECT name FROM system.tables WHERE database = 'db';
    
    -- Verify expected objects are present before resuming
    ```
@@ -357,12 +357,12 @@ housekeeper status --url localhost:9000 --verbose
 housekeeper schema dump --url localhost:9000
 
 # 2. Check revision table
-echo "SELECT * FROM housekeeper.revisions WHERE version = '20240101120000_setup_analytics';" | clickhouse-client --vertical
+echo "SELECT * FROM housekeeper.revisions WHERE version = '20240101120000_setup_db';" | clickhouse-client --vertical
 
 # 3. Options for manual recovery:
 
 # Option A: Delete partial revision and restart migration
-echo "DELETE FROM housekeeper.revisions WHERE version = '20240101120000_setup_analytics';" | clickhouse-client
+echo "DELETE FROM housekeeper.revisions WHERE version = '20240101120000_setup_db';" | clickhouse-client
 housekeeper migrate --url localhost:9000  # Restarts from beginning
 
 # Option B: Fix the underlying issue and resume automatically
@@ -370,7 +370,7 @@ housekeeper migrate --url localhost:9000  # Restarts from beginning
 housekeeper migrate --url localhost:9000  # Will resume automatically
 
 # Option C: Mark migration as completed manually (if statements were applied outside Housekeeper)
-echo "UPDATE housekeeper.revisions SET applied = total, error = NULL WHERE version = '20240101120000_setup_analytics';" | clickhouse-client
+echo "UPDATE housekeeper.revisions SET applied = total, error = NULL WHERE version = '20240101120000_setup_db';" | clickhouse-client
 ```
 
 #### Prevention Best Practices
@@ -463,7 +463,7 @@ docker run -p 9001:9000 -p 8124:8123 clickhouse/clickhouse-server
 1. **Split large files**:
    ```sql
    -- main.sql
-   -- housekeeper:import ./databases/analytics.sql
+   -- housekeeper:import ./databases/db.sql
    -- housekeeper:import ./tables/events.sql
    -- housekeeper:import ./views/aggregations.sql
    ```

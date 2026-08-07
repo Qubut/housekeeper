@@ -1,4 +1,4 @@
-CREATE DICTIONARY `analytics`.`users_dict` (
+CREATE DICTIONARY `db`.`users_dict` (
     `id`    UInt64 IS_OBJECT_ID,
     `name`  String,
     `email` String DEFAULT ''

@@ -1,4 +1,4 @@
-CREATE OR REPLACE VIEW `analytics`.`updated_view`
+CREATE OR REPLACE VIEW `db`.`updated_view`
 AS SELECT
     `id`,
     `name`,

@@ -1,8 +1,8 @@
--- Create the analytics database
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- Create the sample database
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 
 -- Alter the database to update the comment
-ALTER DATABASE analytics MODIFY COMMENT 'Updated analytics database';
+ALTER DATABASE db MODIFY COMMENT 'Updated sample database';
 
 -- Attach a database
 -- This is useful for recovery scenarios
@@ -13,7 +13,7 @@ DETACH DATABASE IF EXISTS temp_db ON CLUSTER production PERMANENTLY;
 
 -- Drop the old database
 -- Be careful with this operation!
-DROP DATABASE IF EXISTS old_analytics ON CLUSTER production SYNC;
+DROP DATABASE IF EXISTS old_db ON CLUSTER production SYNC;
 
 -- Rename databases
 -- This is a batch operation

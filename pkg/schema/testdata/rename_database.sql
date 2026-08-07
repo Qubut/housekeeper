@@ -1,1 +1,1 @@
-RENAME DATABASE `old_analytics` TO `analytics`;
+RENAME DATABASE `old_db` TO `db`;

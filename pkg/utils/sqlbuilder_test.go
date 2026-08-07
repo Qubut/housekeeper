@@ -35,9 +35,9 @@ func TestSQLBuilder_CREATE(t *testing.T) {
 		{
 			name: "CREATE DATABASE with engine and comment",
 			builder: func() *utils.SQLBuilder {
-				return utils.NewSQLBuilder().Create("DATABASE").Name("analytics").Engine("Atomic").Comment("Analytics database")
+				return utils.NewSQLBuilder().Create("DATABASE").Name("db").Engine("Atomic").Comment("Sample database")
 			},
-			expected: "CREATE DATABASE `analytics` ENGINE = Atomic COMMENT 'Analytics database';",
+			expected: "CREATE DATABASE `db` ENGINE = Atomic COMMENT 'Sample database';",
 		},
 		{
 			name:     "CREATE DATABASE IF NOT EXISTS",
@@ -140,9 +140,9 @@ func TestSQLBuilder_ALTER(t *testing.T) {
 		{
 			name: "ALTER DATABASE with cluster",
 			builder: func() *utils.SQLBuilder {
-				return utils.NewSQLBuilder().Alter("DATABASE").Name("analytics").OnCluster("prod").Modify("COMMENT").Escaped("Updated")
+				return utils.NewSQLBuilder().Alter("DATABASE").Name("db").OnCluster("prod").Modify("COMMENT").Escaped("Updated")
 			},
-			expected: "ALTER DATABASE `analytics` ON CLUSTER `prod` MODIFY COMMENT 'Updated';",
+			expected: "ALTER DATABASE `db` ON CLUSTER `prod` MODIFY COMMENT 'Updated';",
 		},
 	}
 
@@ -296,9 +296,9 @@ func TestSQLBuilder_QualifiedName(t *testing.T) {
 	}{
 		{
 			name:     "with database",
-			database: stringPtr("analytics"),
+			database: stringPtr("db"),
 			table:    "events",
-			expected: "CREATE TABLE `analytics`.`events`;",
+			expected: "CREATE TABLE `db`.`events`;",
 		},
 		{
 			name:     "without database",
@@ -447,12 +447,12 @@ func TestSQLBuilder_ComplexExamples(t *testing.T) {
 				return utils.NewSQLBuilder().
 					Create("DATABASE").
 					IfNotExists().
-					Name("analytics").
+					Name("db").
 					OnCluster("production").
 					Engine("Atomic").
-					Comment("Analytics database for reporting")
+					Comment("Sample database for reporting")
 			},
-			expected: "CREATE DATABASE IF NOT EXISTS `analytics` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Analytics database for reporting';",
+			expected: "CREATE DATABASE IF NOT EXISTS `db` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Sample database for reporting';",
 		},
 		{
 			name: "full DROP with all options",
@@ -471,12 +471,12 @@ func TestSQLBuilder_ComplexExamples(t *testing.T) {
 			builder: func() *utils.SQLBuilder {
 				return utils.NewSQLBuilder().
 					Alter("DATABASE").
-					Name("analytics").
+					Name("db").
 					OnCluster("production").
 					Modify("COMMENT").
-					Escaped("Updated analytics database")
+					Escaped("Updated sample database")
 			},
-			expected: "ALTER DATABASE `analytics` ON CLUSTER `production` MODIFY COMMENT 'Updated analytics database';",
+			expected: "ALTER DATABASE `db` ON CLUSTER `production` MODIFY COMMENT 'Updated sample database';",
 		},
 		{
 			name: "RENAME qualified objects",

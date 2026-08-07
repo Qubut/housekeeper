@@ -1,5 +1,5 @@
 -- Ecommerce database schema with modular imports
-CREATE DATABASE IF NOT EXISTS ecommerce ON CLUSTER demo ENGINE = Atomic COMMENT 'E-commerce analytics database';
+CREATE DATABASE IF NOT EXISTS ecommerce ON CLUSTER demo ENGINE = Atomic COMMENT 'E-commerce sample database';
 
 -- Import table definitions
 -- housekeeper:import tables/categories_source.sql

@@ -1,4 +1,4 @@
-CREATE DICTIONARY IF NOT EXISTS `analytics`.`user_mapping` ON CLUSTER `production` (
+CREATE DICTIONARY IF NOT EXISTS `db`.`user_mapping` ON CLUSTER `production` (
     `user_id`   UInt64 IS_OBJECT_ID,
     `user_name` String,
     `group_id`  UInt32 HIERARCHICAL,

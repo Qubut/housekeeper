@@ -102,9 +102,9 @@ func TestBacktickQualifiedName(t *testing.T) {
 	}{
 		{
 			name:     "with database",
-			database: stringPtr("analytics"),
+			database: stringPtr("db"),
 			table:    "events",
-			expected: "`analytics`.`events`",
+			expected: "`db`.`events`",
 		},
 		{
 			name:     "without database (nil)",
@@ -120,21 +120,21 @@ func TestBacktickQualifiedName(t *testing.T) {
 		},
 		{
 			name:     "already backticked database",
-			database: stringPtr("`analytics`"),
+			database: stringPtr("`db`"),
 			table:    "events",
-			expected: "`analytics`.`events`",
+			expected: "`db`.`events`",
 		},
 		{
 			name:     "already backticked table",
-			database: stringPtr("analytics"),
+			database: stringPtr("db"),
 			table:    "`events`",
-			expected: "`analytics`.`events`",
+			expected: "`db`.`events`",
 		},
 		{
 			name:     "both already backticked",
-			database: stringPtr("`analytics`"),
+			database: stringPtr("`db`"),
 			table:    "`events`",
-			expected: "`analytics`.`events`",
+			expected: "`db`.`events`",
 		},
 		{
 			name:     "database with special characters",
@@ -144,9 +144,9 @@ func TestBacktickQualifiedName(t *testing.T) {
 		},
 		{
 			name:     "empty table name",
-			database: stringPtr("analytics"),
+			database: stringPtr("db"),
 			table:    "",
-			expected: "`analytics`.",
+			expected: "`db`.",
 		},
 	}
 

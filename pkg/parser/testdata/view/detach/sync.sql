@@ -1,1 +1,1 @@
-DETACH VIEW `analytics`.`updated_view` SYNC;
+DETACH VIEW `db`.`updated_view` SYNC;

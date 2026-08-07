@@ -1,1 +1,1 @@
-ATTACH VIEW `analytics`.`daily_summary`;
+ATTACH VIEW `db`.`daily_summary`;
