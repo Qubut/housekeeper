@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     DETACH PARTITION '202301';

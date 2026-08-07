@@ -46,12 +46,12 @@ When a cluster is configured, Housekeeper automatically adds `ON CLUSTER` to all
 
 ```sql
 -- Original schema
-CREATE DATABASE analytics ENGINE = Atomic;
-CREATE TABLE analytics.events (...) ENGINE = MergeTree();
+CREATE DATABASE db ENGINE = Atomic;
+CREATE TABLE db.events (...) ENGINE = MergeTree();
 
 -- Generated migration with cluster
-CREATE DATABASE analytics ON CLUSTER production_cluster ENGINE = Atomic;
-CREATE TABLE analytics.events ON CLUSTER production_cluster (...) ENGINE = MergeTree();
+CREATE DATABASE db ON CLUSTER production_cluster ENGINE = Atomic;
+CREATE TABLE db.events ON CLUSTER production_cluster (...) ENGINE = MergeTree();
 ```
 
 ### Manual ON CLUSTER
@@ -60,9 +60,9 @@ You can also specify clusters directly in your schema files:
 
 ```sql
 -- Explicit cluster specification
-CREATE DATABASE analytics ON CLUSTER my_cluster ENGINE = Atomic;
+CREATE DATABASE db ON CLUSTER my_cluster ENGINE = Atomic;
 
-CREATE TABLE analytics.events ON CLUSTER my_cluster (
+CREATE TABLE db.events ON CLUSTER my_cluster (
     id UInt64,
     timestamp DateTime,
     data String
@@ -77,7 +77,7 @@ ORDER BY (id, timestamp);
 For distributed setups, use ReplicatedMergeTree engines:
 
 ```sql
-CREATE TABLE analytics.events ON CLUSTER production_cluster (
+CREATE TABLE db.events ON CLUSTER production_cluster (
     id UInt64,
     timestamp DateTime DEFAULT now(),
     event_type LowCardinality(String),
@@ -95,8 +95,8 @@ SETTINGS index_granularity = 8192;
 Create distributed tables for cluster-wide querying:
 
 ```sql
-CREATE TABLE analytics.events_distributed ON CLUSTER production_cluster AS analytics.events
-ENGINE = Distributed(production_cluster, analytics, events, rand());
+CREATE TABLE db.events_distributed ON CLUSTER production_cluster AS db.events
+ENGINE = Distributed(production_cluster, db, events, rand());
 ```
 
 ## Global Objects in Clusters
@@ -107,12 +107,12 @@ Roles are global objects that exist at the cluster level. When a cluster is conf
 
 ```sql
 -- Your schema definition
-CREATE ROLE IF NOT EXISTS analytics_reader;
-GRANT SELECT ON analytics.* TO analytics_reader;
+CREATE ROLE IF NOT EXISTS db_reader;
+GRANT SELECT ON db.* TO db_reader;
 
 -- Generated migration with cluster configured
-CREATE ROLE IF NOT EXISTS `analytics_reader` ON CLUSTER `production_cluster`;
-GRANT `SELECT` ON `analytics`.* TO `analytics_reader` ON CLUSTER `production_cluster`;
+CREATE ROLE IF NOT EXISTS `db_reader` ON CLUSTER `production_cluster`;
+GRANT `SELECT` ON `db`.* TO `db_reader` ON CLUSTER `production_cluster`;
 ```
 
 ### Global Object Synchronization
@@ -282,19 +282,19 @@ SELECT * FROM system.clusters WHERE cluster = 'production_cluster';
 SELECT * FROM system.distributed_ddl_queue;
 
 # Check replication status
-SELECT * FROM system.replicas WHERE database = 'analytics';
+SELECT * FROM system.replicas WHERE database = 'db';
 ```
 
 ## Example: Complete Cluster Setup
 
 ```sql
 -- Create cluster-aware database
-CREATE DATABASE analytics ON CLUSTER production_cluster 
+CREATE DATABASE db ON CLUSTER production_cluster 
 ENGINE = Atomic 
-COMMENT 'Analytics database for production cluster';
+COMMENT 'Sample database for production cluster';
 
 -- Create replicated table
-CREATE TABLE analytics.events ON CLUSTER production_cluster (
+CREATE TABLE db.events ON CLUSTER production_cluster (
     id UInt64,
     timestamp DateTime DEFAULT now(),
     event_type LowCardinality(String),
@@ -308,18 +308,18 @@ ORDER BY (user_id, timestamp)
 SETTINGS index_granularity = 8192;
 
 -- Create distributed table for querying
-CREATE TABLE analytics.events_distributed ON CLUSTER production_cluster AS analytics.events
-ENGINE = Distributed(production_cluster, analytics, events, sipHash64(user_id));
+CREATE TABLE db.events_distributed ON CLUSTER production_cluster AS db.events
+ENGINE = Distributed(production_cluster, db, events, sipHash64(user_id));
 
 -- Create materialized view with replication
-CREATE MATERIALIZED VIEW analytics.mv_daily_stats ON CLUSTER production_cluster
+CREATE MATERIALIZED VIEW db.mv_daily_stats ON CLUSTER production_cluster
 ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/daily_stats', '{replica}')
 ORDER BY date
 AS SELECT
     toDate(timestamp) as date,
     count() as events,
     uniq(user_id) as users
-FROM analytics.events
+FROM db.events
 GROUP BY date;
 ```
 

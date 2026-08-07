@@ -38,7 +38,7 @@ func TestFormatter_Dictionary(t *testing.T) {
 		},
 		{
 			name: "dictionary with qualified name",
-			sql: `CREATE DICTIONARY analytics.users (
+			sql: `CREATE DICTIONARY db.users (
 				id UInt64,
 				email String
 			) PRIMARY KEY id
@@ -46,7 +46,7 @@ func TestFormatter_Dictionary(t *testing.T) {
 			LAYOUT(FLAT())
 			LIFETIME(MIN 300 MAX 3600);`,
 			expected: []string{
-				"CREATE DICTIONARY `analytics`.`users` (",
+				"CREATE DICTIONARY `db`.`users` (",
 				"    `id`    UInt64,",
 				"    `email` String",
 				")",

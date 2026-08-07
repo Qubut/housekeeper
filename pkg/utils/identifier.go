@@ -82,7 +82,7 @@ func BacktickColumnName(name string) string {
 // If database is nil or empty, only the name is backticked.
 //
 // Examples:
-//   - ("analytics", "events") -> "`analytics`.`events`"
+//   - ("db", "events") -> "`db`.`events`"
 //   - (nil, "events") -> "`events`"
 //   - ("", "events") -> "`events`"
 //

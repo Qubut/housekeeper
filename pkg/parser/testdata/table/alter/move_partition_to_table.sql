@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
-    MOVE PARTITION '202301' TO TABLE `analytics`.`events_archive`;
+ALTER TABLE `db`.`events`
+    MOVE PARTITION '202301' TO TABLE `db`.`events_archive`;

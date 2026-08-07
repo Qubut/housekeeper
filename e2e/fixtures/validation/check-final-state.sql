@@ -1,7 +1,7 @@
 -- Comprehensive final state validation
 SELECT 'total_databases' as check_name, count(*) as result
 FROM system.databases 
-WHERE name IN ('housekeeper', 'analytics')
+WHERE name IN ('housekeeper', 'db')
 HAVING result = 2
 
 UNION ALL
@@ -9,21 +9,21 @@ UNION ALL
 SELECT 'total_tables' as check_name, count(*) as result
 FROM system.tables
 WHERE (database = 'housekeeper' AND name = 'revisions')
-   OR (database = 'analytics' AND name IN ('users', 'events', 'countries', 'daily_stats', 'active_users'))
+   OR (database = 'db' AND name IN ('users', 'events', 'countries', 'daily_stats', 'active_users'))
 HAVING result = 6
 
 UNION ALL
 
 SELECT 'total_dictionaries' as check_name, count(*) as result
 FROM system.dictionaries
-WHERE database = 'analytics' AND name IN ('user_status_dict', 'geo_data')
+WHERE database = 'db' AND name IN ('user_status_dict', 'geo_data')
 HAVING result = 2
 
 UNION ALL
 
 SELECT 'materialized_view_exists' as check_name, count(*) as result
 FROM system.tables
-WHERE database = 'analytics' 
+WHERE database = 'db' 
   AND name = 'daily_stats' 
   AND engine LIKE '%MaterializedView%'
 HAVING result = 1
@@ -32,7 +32,7 @@ UNION ALL
 
 SELECT 'regular_view_exists' as check_name, count(*) as result
 FROM system.tables
-WHERE database = 'analytics'
+WHERE database = 'db'
   AND name = 'active_users'
   AND engine = 'View'
 HAVING result = 1

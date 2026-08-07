@@ -15,7 +15,7 @@
 //
 //	stmt := &parser.Statement{CreateTable: &parser.CreateTableStmt{
 //		Name: "users",
-//		Database: stringPtr("analytics"),
+//		Database: stringPtr("db"),
 //		Columns: []*parser.Column{
 //			{Name: "id", Type: &parser.DataType{Simple: &parser.SimpleDataType{Name: "UInt64"}}},
 //			{Name: "name", Type: &parser.DataType{Simple: &parser.SimpleDataType{Name: "String"}}},
@@ -28,7 +28,7 @@
 //
 // Output:
 //
-//	CREATE TABLE `analytics`.`users` (
+//	CREATE TABLE `db`.`users` (
 //	    `id` UInt64,
 //	    `name` String
 //	) ENGINE = MergeTree();

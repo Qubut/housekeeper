@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     MOVE PARTITION '202301' TO DISK 'cold_storage';

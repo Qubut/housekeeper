@@ -1,10 +1,10 @@
 # Function Library Example
 
-This example demonstrates building a comprehensive function library for a data analytics platform, showcasing organization patterns, testing strategies, and real-world usage scenarios.
+This example demonstrates building a comprehensive function library for a data db platform, showcasing organization patterns, testing strategies, and real-world usage scenarios.
 
 ## Scenario
 
-A data analytics company needs standardized calculations across multiple teams:
+A data db company needs standardized calculations across multiple teams:
 - **Finance**: Tax calculations, discount applications, ROI metrics  
 - **Marketing**: Conversion rates, campaign performance, A/B testing
 - **Product**: User engagement metrics, retention calculations, feature usage
@@ -38,7 +38,7 @@ db/
 
 **schemas/_global/functions/main.sql:**
 ```sql
--- Analytics Function Library v2.1
+-- Sample Function Library v2.1
 -- Provides standardized calculations across finance, marketing, and product teams
 
 -- Finance functions
@@ -242,7 +242,7 @@ CREATE FUNCTION calculate_confidence_interval AS (conversions, visitors, confide
 **schemas/_global/functions/product/engagement.sql:**
 ```sql
 -- User Engagement Functions
--- Standardized engagement metrics across product analytics
+-- Standardized engagement metrics across product db
 
 -- Calculate Daily Active Users engagement score
 CREATE FUNCTION calculate_engagement_score AS (sessions, avg_session_duration, page_views) ->
@@ -483,7 +483,7 @@ CREATE FUNCTION calculate_loyalty_discount AS (amount, months_active) ->
 
 ```sql
 -- 20240201_003_expand_function_library.sql
--- Add product analytics functions
+-- Add product db functions
 CREATE FUNCTION calculate_engagement_score AS (sessions, duration, page_views) ->
     (sessions * 0.4) + (duration * 0.3) + (page_views * 0.3);
 

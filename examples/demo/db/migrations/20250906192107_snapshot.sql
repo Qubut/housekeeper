@@ -11,7 +11,7 @@ CREATE TABLE `test` (
 )
 ENGINE = Memory();
 
-CREATE DATABASE IF NOT EXISTS `ecommerce` ON CLUSTER `demo` ENGINE = Atomic COMMENT 'E-commerce analytics database';
+CREATE DATABASE IF NOT EXISTS `ecommerce` ON CLUSTER `demo` ENGINE = Atomic COMMENT 'E-commerce sample database';
 
 CREATE TABLE `ecommerce`.`categories_source` ON CLUSTER `demo` (
     `id`        UInt64,

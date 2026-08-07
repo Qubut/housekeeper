@@ -136,9 +136,9 @@ func TestGenerateMigrationFile(t *testing.T) {
 		migrationDir := filepath.Join(tempDir, "migrations")
 
 		// Create simple current and target schemas
-		currentSQL := `CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Old comment';`
-		targetSQL := `CREATE DATABASE analytics ENGINE = Atomic COMMENT 'New comment';
-CREATE TABLE analytics.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;`
+		currentSQL := `CREATE DATABASE db ENGINE = Atomic COMMENT 'Old comment';`
+		targetSQL := `CREATE DATABASE db ENGINE = Atomic COMMENT 'New comment';
+CREATE TABLE db.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;`
 
 		current, err := parser.ParseString(currentSQL)
 		require.NoError(t, err)
@@ -164,8 +164,8 @@ CREATE TABLE analytics.events (id UInt64, name String) ENGINE = MergeTree() ORDE
 		contentStr := string(content)
 
 		// Should contain the migration SQL (now with proper formatting and backticks)
-		require.Contains(t, contentStr, "ALTER DATABASE `analytics` MODIFY COMMENT 'New comment';")
-		require.Contains(t, contentStr, "CREATE TABLE `analytics`.`events`")
+		require.Contains(t, contentStr, "ALTER DATABASE `db` MODIFY COMMENT 'New comment';")
+		require.Contains(t, contentStr, "CREATE TABLE `db`.`events`")
 	})
 
 	t.Run("creates migration directory if it doesn't exist", func(t *testing.T) {

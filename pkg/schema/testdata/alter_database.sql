@@ -1,1 +1,1 @@
-ALTER DATABASE `analytics` MODIFY COMMENT 'Updated comment';
+ALTER DATABASE `db` MODIFY COMMENT 'Updated comment';

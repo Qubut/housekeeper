@@ -28,8 +28,8 @@
 //
 //	// Parse SQL string with comprehensive DDL support
 //	sql, err := parser.ParseString(`
-//	    CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics DB';
-//	    CREATE TABLE analytics.events (
+//	    CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample DB';
+//	    CREATE TABLE db.events (
 //	        id UUID DEFAULT generateUUIDv4(),
 //	        timestamp DateTime,
 //	        user_id UInt64,
@@ -50,7 +50,7 @@
 //	    ENGINE = MergeTree() ORDER BY date
 //	    POPULATE
 //	    AS SELECT toDate(timestamp) as date, count() as events
-//	    FROM analytics.events GROUP BY date;
+//	    FROM db.events GROUP BY date;
 //	`)
 //
 //	// Parse from file using io.Reader

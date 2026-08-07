@@ -94,26 +94,26 @@ Based on the comparison, Housekeeper generates optimal migration strategies:
 #### Creating Databases
 When a database exists in target schema but not current state:
 ```sql
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 ```
 
 #### Modifying Database Comments
 When database properties change:
 ```sql
-ALTER DATABASE analytics MODIFY COMMENT 'Updated analytics database';
+ALTER DATABASE db MODIFY COMMENT 'Updated sample database';
 ```
 
 #### Renaming Databases
 When a database has identical properties but different name:
 ```sql
-RENAME DATABASE old_analytics TO analytics;
+RENAME DATABASE old_db TO db;
 ```
 
 ### Table Operations
 
 #### Creating Tables
 ```sql
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     event_type String
@@ -124,13 +124,13 @@ CREATE TABLE analytics.events (
 For standard table engines, Housekeeper generates precise ALTER statements:
 ```sql
 -- Add new column
-ALTER TABLE analytics.events ADD COLUMN user_id UInt64;
+ALTER TABLE db.events ADD COLUMN user_id UInt64;
 
 -- Modify column type
-ALTER TABLE analytics.events MODIFY COLUMN event_type LowCardinality(String);
+ALTER TABLE db.events MODIFY COLUMN event_type LowCardinality(String);
 
 -- Drop column
-ALTER TABLE analytics.events DROP COLUMN old_column;
+ALTER TABLE db.events DROP COLUMN old_column;
 ```
 
 #### Integration Engine Tables
@@ -147,7 +147,7 @@ Dictionaries use CREATE OR REPLACE for all modifications since ClickHouse doesn'
 
 ```sql
 -- Any dictionary change becomes CREATE OR REPLACE
-CREATE OR REPLACE DICTIONARY analytics.users_dict (
+CREATE OR REPLACE DICTIONARY db.users_dict (
     id UInt64 IS_OBJECT_ID,
     name String INJECTIVE
 ) PRIMARY KEY id
@@ -161,7 +161,7 @@ LIFETIME(3600);
 #### Regular Views
 Use CREATE OR REPLACE for modifications:
 ```sql
-CREATE OR REPLACE VIEW analytics.daily_summary 
+CREATE OR REPLACE VIEW db.daily_summary 
 AS SELECT date, count() FROM events GROUP BY date;
 ```
 
@@ -169,10 +169,10 @@ AS SELECT date, count() FROM events GROUP BY date;
 Use DROP+CREATE for query modifications (more reliable than ALTER TABLE MODIFY QUERY):
 ```sql
 -- Drop existing materialized view
-DROP TABLE analytics.mv_daily_stats;
+DROP TABLE db.mv_daily_stats;
 
 -- Recreate with new query
-CREATE MATERIALIZED VIEW analytics.mv_daily_stats
+CREATE MATERIALIZED VIEW db.mv_daily_stats
 ENGINE = MergeTree() ORDER BY date
 AS SELECT date, count(), sum(amount) FROM events GROUP BY date;
 ```
@@ -210,21 +210,21 @@ Housekeeper includes intelligent rename detection to avoid unnecessary DROP+CREA
 
 **Current Schema:**
 ```sql
-CREATE DATABASE old_analytics ENGINE = Atomic COMMENT 'Analytics DB';
-CREATE TABLE old_analytics.user_events (...) ENGINE = MergeTree() ORDER BY timestamp;
+CREATE DATABASE old_db ENGINE = Atomic COMMENT 'Sample DB';
+CREATE TABLE old_db.user_events (...) ENGINE = MergeTree() ORDER BY timestamp;
 ```
 
 **Target Schema:**
 ```sql
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics DB';
-CREATE TABLE analytics.events (...) ENGINE = MergeTree() ORDER BY timestamp;
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample DB';
+CREATE TABLE db.events (...) ENGINE = MergeTree() ORDER BY timestamp;
 ```
 
 **Generated Migration:**
 ```sql
 -- Efficient renames instead of DROP+CREATE
-RENAME DATABASE old_analytics TO analytics;
-RENAME TABLE analytics.user_events TO analytics.events;
+RENAME DATABASE old_db TO db;
+RENAME TABLE db.user_events TO db.events;
 ```
 
 ## Migration Files
@@ -244,11 +244,11 @@ Each migration file includes:
 -- Schema migration generated at 2024-08-06 14:30:22 UTC
 -- Down migration: swap current and target schemas and regenerate
 
--- Create database 'analytics'
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- Create database 'db'
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 
--- Create table 'analytics.events'
-CREATE TABLE analytics.events (
+-- Create table 'db.events'
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4(),
     timestamp DateTime,
     event_type String
@@ -330,12 +330,12 @@ INSERT INTO housekeeper.revisions (
 If a migration fails partway through:
 
 ```sql
--- Migration: 20240101120000_setup_analytics.sql (5 statements total)
-CREATE DATABASE analytics;                    -- ✅ Statement 1: Success
-CREATE TABLE analytics.events (...);          -- ✅ Statement 2: Success  
-CREATE TABLE analytics.users (...);           -- ✅ Statement 3: Success
-CREATE DICTIONARY analytics.locations (...);  -- ❌ Statement 4: Failed (network error)
-CREATE VIEW analytics.summary (...);          -- ⏸  Statement 5: Not executed
+-- Migration: 20240101120000_setup_db.sql (5 statements total)
+CREATE DATABASE db;                    -- ✅ Statement 1: Success
+CREATE TABLE db.events (...);          -- ✅ Statement 2: Success  
+CREATE TABLE db.users (...);           -- ✅ Statement 3: Success
+CREATE DICTIONARY db.locations (...);  -- ❌ Statement 4: Failed (network error)
+CREATE VIEW db.summary (...);          -- ⏸  Statement 5: Not executed
 ```
 
 **Revision Record Created:**
@@ -363,12 +363,12 @@ Housekeeper automatically:
 ```bash
 Found 1 partially applied migration(s) that will be resumed:
 
-  ⚠️  20240101120000_setup_analytics: 3/5 statements applied
+  ⚠️  20240101120000_setup_db: 3/5 statements applied
      Last error: Network timeout connecting to dictionary source
      Will resume with 2 remaining statement(s)
 
 Migration execution results:
-  ⚠️  20240101120000_setup_analytics resumed from statement 4 in 1.234s (2/2 remaining statements)
+  ⚠️  20240101120000_setup_db resumed from statement 4 in 1.234s (2/2 remaining statements)
 ```
 
 ### Safety Features
@@ -456,13 +456,13 @@ When working with existing databases, you can exclude certain databases from the
 # Extract schema while ignoring test databases
 housekeeper schema dump --url localhost:9000 \
   --ignore-databases testing_db \
-  --ignore-databases temp_analytics
+  --ignore-databases temp_db
 
 # Or configure in housekeeper.yaml for permanent exclusion
 clickhouse:
   ignore_databases:
     - testing_db
-    - temp_analytics
+    - temp_db
 ```
 
 This is useful when you have test or temporary databases that shouldn't be part of your managed schema.

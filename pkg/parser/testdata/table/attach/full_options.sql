@@ -1,1 +1,1 @@
-ATTACH TABLE `analytics`.`old_events` ON CLUSTER `production`;
+ATTACH TABLE `db`.`old_events` ON CLUSTER `production`;

@@ -19,7 +19,7 @@ Roles are stored in the `db/schemas/_global/roles/` directory structure:
 ```
 db/schemas/_global/roles/
 ├── main.sql              # Main entry point for role definitions
-├── analytics_roles.sql   # Analytics team roles
+├── db_roles.sql   # Sample team roles
 ├── admin_roles.sql       # Administrative roles
 └── data_access_roles.sql # Data access roles
 ```
@@ -30,7 +30,7 @@ Your main schema file imports roles first:
 -- db/main.sql
 -- Import global objects first (roles are processed before databases)
 -- housekeeper:import schemas/_global/roles/main.sql
--- housekeeper:import schemas/analytics/schema.sql
+-- housekeeper:import schemas/db/schema.sql
 ```
 
 ## Supported Role Operations
@@ -53,13 +53,13 @@ Housekeeper supports all ClickHouse role DDL operations:
 
 ```sql
 -- Read-only analyst role
-CREATE ROLE IF NOT EXISTS analytics_reader;
-GRANT SELECT ON analytics.* TO analytics_reader;
+CREATE ROLE IF NOT EXISTS db_reader;
+GRANT SELECT ON db.* TO db_reader;
 
 -- Data writer with limited permissions  
 CREATE ROLE IF NOT EXISTS data_writer;
-GRANT SELECT, INSERT ON analytics.events TO data_writer;
-GRANT SELECT ON analytics.users TO data_writer;
+GRANT SELECT, INSERT ON db.events TO data_writer;
+GRANT SELECT ON db.users TO data_writer;
 
 -- Admin role with full permissions
 CREATE ROLE IF NOT EXISTS db_admin;
@@ -74,16 +74,16 @@ SETTINGS max_memory_usage = 10000000000, readonly = 0;
 
 ```sql
 -- Grant table-specific permissions
-GRANT SELECT, INSERT ON analytics.events TO data_writer;
+GRANT SELECT, INSERT ON db.events TO data_writer;
 
 -- Grant database-wide permissions
-GRANT SELECT ON analytics.* TO analytics_reader;
+GRANT SELECT ON db.* TO db_reader;
 
 -- Grant global permissions
-GRANT SHOW TABLES ON *.* TO analytics_reader;
+GRANT SHOW TABLES ON *.* TO db_reader;
 
 -- Grant with options
-GRANT SELECT ON analytics.sensitive_data TO senior_analyst WITH GRANT OPTION;
+GRANT SELECT ON db.sensitive_data TO senior_analyst WITH GRANT OPTION;
 ```
 
 ### Role Hierarchies
@@ -95,15 +95,15 @@ CREATE ROLE IF NOT EXISTS senior_analyst;
 CREATE ROLE IF NOT EXISTS lead_analyst;
 
 -- Grant basic permissions to junior role
-GRANT SELECT ON analytics.public_data TO junior_analyst;
+GRANT SELECT ON db.public_data TO junior_analyst;
 
 -- Grant junior role permissions plus additional access to senior role
 GRANT junior_analyst TO senior_analyst;
-GRANT SELECT ON analytics.detailed_reports TO senior_analyst;
+GRANT SELECT ON db.detailed_reports TO senior_analyst;
 
 -- Grant senior role permissions plus admin capabilities to lead role
 GRANT senior_analyst TO lead_analyst;
-GRANT SELECT, INSERT, UPDATE ON analytics.* TO lead_analyst;
+GRANT SELECT, INSERT, UPDATE ON db.* TO lead_analyst;
 ```
 
 ## Advanced Role Patterns
@@ -114,14 +114,14 @@ GRANT SELECT, INSERT, UPDATE ON analytics.* TO lead_analyst;
 -- Development environment roles
 CREATE ROLE IF NOT EXISTS dev_reader;
 CREATE ROLE IF NOT EXISTS dev_writer;
-GRANT SELECT ON dev_analytics.* TO dev_reader;
-GRANT SELECT, INSERT, UPDATE, DELETE ON dev_analytics.* TO dev_writer;
+GRANT SELECT ON dev_db.* TO dev_reader;
+GRANT SELECT, INSERT, UPDATE, DELETE ON dev_db.* TO dev_writer;
 
 -- Production environment roles (more restrictive)
 CREATE ROLE IF NOT EXISTS prod_reader;
 CREATE ROLE IF NOT EXISTS prod_writer;
-GRANT SELECT ON prod_analytics.events, prod_analytics.users TO prod_reader;
-GRANT INSERT ON prod_analytics.events TO prod_writer;
+GRANT SELECT ON prod_db.events, prod_db.users TO prod_reader;
+GRANT INSERT ON prod_db.events TO prod_writer;
 ```
 
 ### Application-Specific Roles
@@ -130,20 +130,20 @@ GRANT INSERT ON prod_analytics.events TO prod_writer;
 -- API service role
 CREATE ROLE IF NOT EXISTS api_service 
 SETTINGS max_concurrent_queries_for_user = 100;
-GRANT SELECT ON analytics.events TO api_service;
-GRANT INSERT ON analytics.api_logs TO api_service;
+GRANT SELECT ON db.events TO api_service;
+GRANT INSERT ON db.api_logs TO api_service;
 
 -- ETL pipeline role
 CREATE ROLE IF NOT EXISTS etl_pipeline
 SETTINGS max_memory_usage = 50000000000;
 GRANT SELECT ON raw_data.* TO etl_pipeline;
-GRANT INSERT, SELECT ON analytics.* TO etl_pipeline;
-GRANT CREATE TABLE ON analytics.* TO etl_pipeline;
+GRANT INSERT, SELECT ON db.* TO etl_pipeline;
+GRANT CREATE TABLE ON db.* TO etl_pipeline;
 
 -- Reporting service role
 CREATE ROLE IF NOT EXISTS reporting_service;
-GRANT SELECT ON analytics.aggregated_views TO reporting_service;
-GRANT CREATE VIEW ON analytics.* TO reporting_service;
+GRANT SELECT ON db.aggregated_views TO reporting_service;
+GRANT CREATE VIEW ON db.* TO reporting_service;
 ```
 
 ### Modular Role Organization
@@ -153,23 +153,23 @@ You can organize roles across multiple files and import them:
 ```sql
 -- db/schemas/_global/roles/main.sql
 -- Import role definitions by category
--- housekeeper:import analytics_roles.sql
+-- housekeeper:import db_roles.sql
 -- housekeeper:import admin_roles.sql  
 -- housekeeper:import application_roles.sql
 ```
 
 ```sql
--- db/schemas/_global/roles/analytics_roles.sql
--- Analytics team roles
+-- db/schemas/_global/roles/db_roles.sql
+-- Sample team roles
 CREATE ROLE IF NOT EXISTS data_analyst;
 CREATE ROLE IF NOT EXISTS senior_data_analyst;
-CREATE ROLE IF NOT EXISTS analytics_admin;
+CREATE ROLE IF NOT EXISTS db_admin;
 
-GRANT SELECT ON analytics.* TO data_analyst;
+GRANT SELECT ON db.* TO data_analyst;
 GRANT data_analyst TO senior_data_analyst;
-GRANT SELECT, INSERT, UPDATE ON analytics.config TO senior_data_analyst;
-GRANT senior_data_analyst TO analytics_admin;
-GRANT CREATE TABLE, DROP TABLE ON analytics.* TO analytics_admin;
+GRANT SELECT, INSERT, UPDATE ON db.config TO senior_data_analyst;
+GRANT senior_data_analyst TO db_admin;
+GRANT CREATE TABLE, DROP TABLE ON db.* TO db_admin;
 ```
 
 ## Cluster-Aware Roles
@@ -178,12 +178,12 @@ When using ClickHouse clusters, Housekeeper automatically adds `ON CLUSTER` clau
 
 ```sql
 -- Your schema definition
-CREATE ROLE IF NOT EXISTS analytics_reader;
-GRANT SELECT ON analytics.* TO analytics_reader;
+CREATE ROLE IF NOT EXISTS db_reader;
+GRANT SELECT ON db.* TO db_reader;
 
 -- Generated migration (with cluster configured)
-CREATE ROLE IF NOT EXISTS `analytics_reader` ON CLUSTER `production`;
-GRANT `SELECT` ON `analytics`.* TO `analytics_reader` ON CLUSTER `production`;
+CREATE ROLE IF NOT EXISTS `db_reader` ON CLUSTER `production`;
+GRANT `SELECT` ON `db`.* TO `db_reader` ON CLUSTER `production`;
 ```
 
 Configure cluster support in `housekeeper.yaml`:
@@ -217,10 +217,10 @@ Housekeeper generates efficient migrations for role changes:
 -- Generated: ALTER ROLE `old_analyst` RENAME TO `data_analyst`;
 
 -- Permission changes (generates precise GRANT/REVOKE)
--- Current: GRANT SELECT ON analytics.events TO analyst;
--- Target:  GRANT SELECT ON analytics.* TO analyst;  
--- Generated: GRANT `SELECT` ON `analytics`.* TO `analyst`;
---            REVOKE `SELECT` ON `analytics`.`events` FROM `analyst`;
+-- Current: GRANT SELECT ON db.events TO analyst;
+-- Target:  GRANT SELECT ON db.* TO analyst;  
+-- Generated: GRANT `SELECT` ON `db`.* TO `analyst`;
+--            REVOKE `SELECT` ON `db`.`events` FROM `analyst`;
 ```
 
 ### Schema Extraction
@@ -249,7 +249,7 @@ CREATE ROLE IF NOT EXISTS prod_data_reader;
 CREATE ROLE IF NOT EXISTS dev_data_writer;
 
 -- Functional groupings  
-CREATE ROLE IF NOT EXISTS analytics_readonly;
+CREATE ROLE IF NOT EXISTS db_readonly;
 CREATE ROLE IF NOT EXISTS reporting_readwrite;
 CREATE ROLE IF NOT EXISTS etl_admin;
 
@@ -285,11 +285,11 @@ GRANT SHOW TABLES ON *.* TO base_user;
 -- Specialized roles inherit base permissions
 CREATE ROLE IF NOT EXISTS data_viewer;
 GRANT base_user TO data_viewer;
-GRANT SELECT ON analytics.* TO data_viewer;
+GRANT SELECT ON db.* TO data_viewer;
 
 CREATE ROLE IF NOT EXISTS data_editor;  
 GRANT data_viewer TO data_editor;
-GRANT INSERT, UPDATE ON analytics.mutable_tables TO data_editor;
+GRANT INSERT, UPDATE ON db.mutable_tables TO data_editor;
 ```
 
 ### 4. Documentation
@@ -297,13 +297,13 @@ GRANT INSERT, UPDATE ON analytics.mutable_tables TO data_editor;
 Document role purposes and permissions:
 
 ```sql
--- Analytics team read-only access
--- Permissions: SELECT on all analytics tables and views
+-- Sample team read-only access
+-- Permissions: SELECT on all db tables and views
 -- Use case: Dashboard queries, report generation
 -- Assigned to: analysts, data scientists
-CREATE ROLE IF NOT EXISTS analytics_reader;
-GRANT SELECT ON analytics.* TO analytics_reader;
-GRANT SHOW TABLES ON analytics.* TO analytics_reader;
+CREATE ROLE IF NOT EXISTS db_reader;
+GRANT SELECT ON db.* TO db_reader;
+GRANT SHOW TABLES ON db.* TO db_reader;
 ```
 
 ### 5. Regular Auditing
@@ -351,13 +351,13 @@ GRANT CREATE VIEW ON dashboard.* TO engineering_team;
 
 -- Data science team
 CREATE ROLE IF NOT EXISTS data_science_team;
-GRANT SELECT ON analytics.*, raw_data.* TO data_science_team;
+GRANT SELECT ON db.*, raw_data.* TO data_science_team;
 GRANT CREATE TABLE ON experiments.* TO data_science_team;
 GRANT INSERT, UPDATE, DELETE ON experiments.* TO data_science_team;
 
 -- Business intelligence team
 CREATE ROLE IF NOT EXISTS bi_team;
-GRANT SELECT ON analytics.aggregated_* TO bi_team;
+GRANT SELECT ON db.aggregated_* TO bi_team;
 GRANT CREATE VIEW ON reports.* TO bi_team;
 ```
 
@@ -367,7 +367,7 @@ GRANT CREATE VIEW ON reports.* TO bi_team;
 
 1. **Role not found errors**
    ```
-   Error: Role 'analytics_reader' not found
+   Error: Role 'db_reader' not found
    ```
    - Ensure roles are created before they're referenced
    - Check that role imports come before database imports

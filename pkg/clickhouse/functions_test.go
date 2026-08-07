@@ -52,8 +52,8 @@ func TestAddOnClusterToFunction(t *testing.T) {
 				lower(os) = 'android', 'Android',
 				'Other'
 			)`,
-			cluster: "analytics",
-			expected: `CREATE FUNCTION normalizedOS ON CLUSTER ` + "`analytics`" + ` AS (os) -> multiIf(
+			cluster: "db",
+			expected: `CREATE FUNCTION normalizedOS ON CLUSTER ` + "`db`" + ` AS (os) -> multiIf(
 				startsWith(lower(os), 'windows'), 'Windows',
 				startsWith(lower(os), 'mac'), 'Mac',
 				lower(os) IN ('ios', 'iphone'), 'iOS',

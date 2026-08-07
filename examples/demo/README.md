@@ -1,6 +1,6 @@
 # Housekeeper Demo Project
 
-This directory contains a complete example of a Housekeeper project for managing ClickHouse schemas. It demonstrates a typical e-commerce analytics setup with various ClickHouse features and objects.
+This directory contains a complete example of a Housekeeper project for managing ClickHouse schemas. It demonstrates a typical e-commerce db setup with various ClickHouse features and objects.
 
 ## Project Structure
 
@@ -39,10 +39,10 @@ examples/demo/
 
 ## Schema Overview
 
-The demo schema represents an e-commerce analytics platform with the following components:
+The demo schema represents an e-commerce db platform with the following components:
 
 ### Database
-- `ecommerce` - Main analytics database using Atomic engine
+- `ecommerce` - Main sample database using Atomic engine
 
 ### Tables
 - `events` - User interaction tracking (MergeTree with partitioning)
@@ -118,13 +118,13 @@ go run cmd/housekeeper/main.go validate examples/demo/db/migrations/
 4. **Performance Optimization**: Partitioning, ordering keys, and materialized columns
 5. **Data Lifecycle**: TTL policies for data retention
 6. **External Integration**: Dictionary sources from APIs and other databases
-7. **Real-time Analytics**: Materialized views for continuous aggregation
+7. **Real-time aggregation**: Materialized views for continuous aggregation
 
 ## Schema Evolution
 
 The migration files show a typical evolution:
 1. **Initial**: Basic user events and profiles
 2. **Expansion**: Add products and orders for e-commerce
-3. **Analytics**: Add dictionaries and analytical views
+3. **Aggregation**: Add dictionaries and analytical views
 
 This demonstrates how schemas grow over time and how migrations manage these changes safely.

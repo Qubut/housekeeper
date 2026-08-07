@@ -1,5 +1,5 @@
--- Materialized view for real-time analytics
-CREATE MATERIALIZED VIEW analytics.daily_stats
+-- Materialized view for real-time db
+CREATE MATERIALIZED VIEW db.daily_stats
 ENGINE = MergeTree()
 ORDER BY (date, event_type)
 POPULATE
@@ -10,5 +10,5 @@ AS SELECT
     uniq(user_id) as unique_users,
     uniq(session_id) as unique_sessions,
     max(timestamp) as last_event_time
-FROM analytics.events
+FROM db.events
 GROUP BY date, event_type;

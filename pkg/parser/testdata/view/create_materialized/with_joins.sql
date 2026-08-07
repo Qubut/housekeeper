@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW `analytics`.`mv_joins`
+CREATE MATERIALIZED VIEW `db`.`mv_joins`
 ENGINE = MergeTree() ORDER BY (`date`, `category`)
 AS SELECT
     toDate(`e`.`timestamp`) AS `date`,

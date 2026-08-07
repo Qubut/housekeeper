@@ -1,6 +1,6 @@
 -- Table operations with complex features
 
-CREATE TABLE `analytics`.`events` (
+CREATE TABLE `db`.`events` (
     `id`         UInt64,
     `user_id`    UInt64,
     `event_type` LowCardinality(String),
@@ -27,7 +27,7 @@ ENGINE = ReplacingMergeTree(`created_at`)
 ORDER BY `product_id`
 COMMENT 'Product catalog table';
 
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     ADD COLUMN `session_id` String DEFAULT '' AFTER `user_id`,
     MODIFY COLUMN `metadata` String COMMENT 'Updated metadata column',
     DROP COLUMN `version`;

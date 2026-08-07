@@ -13,12 +13,12 @@ import (
 //
 //	sql := New().
 //		CREATE("DATABASE").
-//		Name("analytics").
+//		Name("db").
 //		OnCluster("production").
 //		Engine("Atomic").
-//		Comment("Analytics database").
+//		Comment("Sample database").
 //		String()
-//	// Output: CREATE DATABASE `analytics` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Analytics database';
+//	// Output: CREATE DATABASE `db` ON CLUSTER `production` ENGINE = Atomic COMMENT 'Sample database';
 type SQLBuilder struct {
 	parts []string
 }
@@ -112,7 +112,7 @@ func (b *SQLBuilder) IfNotExists() *SQLBuilder {
 //
 // Example:
 //
-//	builder.Name("analytics")           // `analytics`
+//	builder.Name("db")           // `db`
 //	builder.Name("db.table")            // `db`.`table`
 func (b *SQLBuilder) Name(name string) *SQLBuilder {
 	if name != "" {
@@ -127,7 +127,7 @@ func (b *SQLBuilder) Name(name string) *SQLBuilder {
 // Example:
 //
 //	builder.QualifiedName(nil, "events")              // `events`
-//	builder.QualifiedName(&"analytics", "events")     // `analytics`.`events`
+//	builder.QualifiedName(&"db", "events")     // `db`.`events`
 func (b *SQLBuilder) QualifiedName(database *string, name string) *SQLBuilder {
 	qualifiedName := BacktickQualifiedName(database, name)
 	if qualifiedName != "" {
@@ -171,7 +171,7 @@ func (b *SQLBuilder) Engine(engine string) *SQLBuilder {
 //
 // Example:
 //
-//	builder.Comment("Analytics database")  // COMMENT 'Analytics database'
+//	builder.Comment("Sample database")  // COMMENT 'Sample database'
 //	builder.Comment("")                     // (nothing added)
 func (b *SQLBuilder) Comment(comment string) *SQLBuilder {
 	if comment != "" {

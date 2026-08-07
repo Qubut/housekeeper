@@ -4,7 +4,7 @@ A complete example showing how to create a simple but effective ClickHouse schem
 
 ## Overview
 
-This example demonstrates a basic analytics platform schema with:
+This example demonstrates a basic db platform schema with:
 - User tracking and profiles
 - Event logging with partitioning
 - Simple aggregation views
@@ -40,16 +40,16 @@ dir: db/migrations
 
 **db/main.sql:**
 ```sql
--- Basic Analytics Schema
--- Simple yet production-ready schema for user analytics
+-- Basic Sample Schema
+-- Simple yet production-ready schema for user db
 
--- Create analytics database
-CREATE DATABASE analytics ON CLUSTER basic_cluster
+-- Create sample database
+CREATE DATABASE db ON CLUSTER basic_cluster
 ENGINE = Atomic 
-COMMENT 'Basic analytics platform database';
+COMMENT 'Basic db platform database';
 
 -- Users table with profile information
-CREATE TABLE analytics.users ON CLUSTER basic_cluster (
+CREATE TABLE db.users ON CLUSTER basic_cluster (
     id UInt64,
     email String,
     name String,
@@ -57,7 +57,7 @@ CREATE TABLE analytics.users ON CLUSTER basic_cluster (
     created_at DateTime DEFAULT now(),
     updated_at DateTime DEFAULT now(),
     
-    -- Derived columns for analytics
+    -- Derived columns for db
     signup_month UInt32 MATERIALIZED toYYYYMM(signup_date),
     email_domain String MATERIALIZED splitByChar('@', email)[2]
 ) 
@@ -68,7 +68,7 @@ SETTINGS index_granularity = 8192
 COMMENT 'User profiles and account information';
 
 -- Events table for tracking user interactions
-CREATE TABLE analytics.events ON CLUSTER basic_cluster (
+CREATE TABLE db.events ON CLUSTER basic_cluster (
     id UUID DEFAULT generateUUIDv4(),
     user_id UInt64,
     event_type LowCardinality(String),
@@ -88,7 +88,7 @@ SETTINGS index_granularity = 8192
 COMMENT 'User event tracking with automatic data lifecycle';
 
 -- Country lookup dictionary
-CREATE DICTIONARY analytics.countries_dict ON CLUSTER basic_cluster (
+CREATE DICTIONARY db.countries_dict ON CLUSTER basic_cluster (
     code FixedString(2),
     name String,
     continent LowCardinality(String)
@@ -97,10 +97,10 @@ PRIMARY KEY code
 SOURCE(FILE(path '/opt/data/countries.csv' format 'CSVWithNames'))
 LAYOUT(HASHED())
 LIFETIME(86400)
-COMMENT 'Country reference data for user geo-analytics';
+COMMENT 'Country reference data for user geo-db';
 
 -- Daily user activity summary
-CREATE VIEW analytics.daily_activity AS
+CREATE VIEW db.daily_activity AS
 SELECT 
     date,
     count() as total_events,
@@ -108,13 +108,13 @@ SELECT
     uniq(session_id) as unique_sessions,
     countIf(event_type = 'page_view') as page_views,
     countIf(event_type = 'click') as clicks
-FROM analytics.events
+FROM db.events
 WHERE date >= today() - INTERVAL 30 DAY
 GROUP BY date
 ORDER BY date DESC;
 
 -- User summary with aggregated metrics
-CREATE VIEW analytics.user_summary AS
+CREATE VIEW db.user_summary AS
 SELECT 
     u.id,
     u.email,
@@ -124,21 +124,21 @@ SELECT
     e.total_events,
     e.last_activity,
     e.favorite_page
-FROM analytics.users u
+FROM db.users u
 LEFT JOIN (
     SELECT 
         user_id,
         count() as total_events,
         max(timestamp) as last_activity,
         topK(1)(page_url)[1] as favorite_page
-    FROM analytics.events
+    FROM db.events
     WHERE timestamp >= now() - INTERVAL 30 DAY
     GROUP BY user_id
 ) e ON u.id = e.user_id
 ORDER BY e.total_events DESC NULLS LAST;
 
 -- Real-time hourly statistics
-CREATE MATERIALIZED VIEW analytics.hourly_stats ON CLUSTER basic_cluster
+CREATE MATERIALIZED VIEW db.hourly_stats ON CLUSTER basic_cluster
 ENGINE = SummingMergeTree((event_count, unique_users))
 ORDER BY (date, hour, event_type)
 POPULATE
@@ -148,14 +148,14 @@ AS SELECT
     event_type,
     count() as event_count,
     uniq(user_id) as unique_users
-FROM analytics.events
+FROM db.events
 GROUP BY date, hour, event_type;
 ```
 
 ## Key Features Demonstrated
 
 ### 1. Database Organization
-- Single `analytics` database for related objects
+- Single `db` database for related objects
 - Cluster-aware DDL with `ON CLUSTER` clauses
 - Descriptive comments for documentation
 
@@ -226,7 +226,7 @@ LEFT JOIN (
     SELECT 
         user_id,
         topK(1)(page_url)[1] as favorite_page  -- Most frequent page
-    FROM analytics.events
+    FROM db.events
     GROUP BY user_id
 ) e ON u.id = e.user_id
 ```
@@ -234,7 +234,7 @@ LEFT JOIN (
 #### Real-time Materialized Views
 ```sql
 -- Pre-aggregate data for fast queries
-CREATE MATERIALIZED VIEW analytics.hourly_stats
+CREATE MATERIALIZED VIEW db.hourly_stats
 ENGINE = SummingMergeTree((event_count, unique_users))  -- Automatic summing
 POPULATE                                                 -- Backfill existing data
 ```
@@ -243,7 +243,7 @@ POPULATE                                                 -- Backfill existing da
 
 ### Users
 ```sql
-INSERT INTO analytics.users (id, email, name, signup_date) VALUES
+INSERT INTO db.users (id, email, name, signup_date) VALUES
 (1, 'alice@example.com', 'Alice Johnson', '2024-01-15'),
 (2, 'bob@company.com', 'Bob Smith', '2024-01-20'),
 (3, 'carol@university.edu', 'Carol Wilson', '2024-02-01');
@@ -251,7 +251,7 @@ INSERT INTO analytics.users (id, email, name, signup_date) VALUES
 
 ### Events
 ```sql
-INSERT INTO analytics.events (user_id, event_type, session_id, page_url) VALUES
+INSERT INTO db.events (user_id, event_type, session_id, page_url) VALUES
 (1, 'page_view', 'sess_1', '/dashboard'),
 (1, 'click', 'sess_1', '/dashboard'),
 (2, 'page_view', 'sess_2', '/products'),
@@ -273,7 +273,7 @@ JP,Japan,Asia
 
 ### Daily Activity Report
 ```sql
-SELECT * FROM analytics.daily_activity
+SELECT * FROM db.daily_activity
 WHERE date >= today() - INTERVAL 7 DAY
 ORDER BY date DESC;
 ```
@@ -285,7 +285,7 @@ SELECT
     email,
     total_events,
     last_activity
-FROM analytics.user_summary
+FROM db.user_summary
 WHERE total_events IS NOT NULL
 ORDER BY total_events DESC
 LIMIT 10;
@@ -297,7 +297,7 @@ SELECT
     hour,
     sum(event_count) as total_events,
     sum(unique_users) as total_users
-FROM analytics.hourly_stats
+FROM db.hourly_stats
 WHERE date = today()
 GROUP BY hour
 ORDER BY hour;
@@ -309,7 +309,7 @@ SELECT
     email_domain,
     count() as user_count,
     avg(total_events) as avg_activity
-FROM analytics.user_summary
+FROM db.user_summary
 WHERE email_domain != ''
 GROUP BY email_domain
 ORDER BY user_count DESC;
@@ -319,7 +319,7 @@ ORDER BY user_count DESC;
 
 ### 1. Initialize Project
 ```bash
-mkdir basic-analytics && cd basic-analytics
+mkdir basic-db && cd basic-db
 housekeeper init
 ```
 
@@ -342,7 +342,7 @@ Add new table for product tracking:
 
 ```sql
 -- Add to db/main.sql
-CREATE TABLE analytics.products ON CLUSTER basic_cluster (
+CREATE TABLE db.products ON CLUSTER basic_cluster (
     id UInt64,
     name String,
     category LowCardinality(String),
@@ -372,7 +372,7 @@ housekeeper diff  # Creates migration with just the new table
 - **TTL Policies**: Automatic cleanup of old event data
 - **Retention Strategy**: Keep aggregated data longer than raw data
 
-### 4. Analytics Patterns
+### 4. Aggregation Patterns
 - **Materialized Views**: Pre-aggregate frequently queried data
 - **Analytical Views**: Complex queries as reusable views
 - **Dictionary Lookups**: Reference data for enrichment
@@ -391,4 +391,4 @@ From this basic schema, you can evolve to:
 3. **[Cluster Management](../advanced/cluster-management.md)** - Deploy to distributed ClickHouse
 4. **[Best Practices](../advanced/best-practices.md)** - Production optimization techniques
 
-This basic example provides a solid foundation for most analytics use cases while demonstrating Housekeeper's key features and ClickHouse best practices.
+This basic example provides a solid foundation for most db use cases while demonstrating Housekeeper's key features and ClickHouse best practices.

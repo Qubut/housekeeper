@@ -1,1 +1,1 @@
-DROP TABLE `analytics`.`mv_old` ON CLUSTER `analytics_cluster` SYNC;
+DROP TABLE `db`.`mv_old` ON CLUSTER `db_cluster` SYNC;

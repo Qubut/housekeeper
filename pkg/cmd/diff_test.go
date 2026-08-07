@@ -78,8 +78,8 @@ func TestDiffCommand_WithSumFileGeneration(t *testing.T) {
 	// Create fixture with migrations and a schema that will create differences
 	fixture := testutil.TestProject(t).
 		WithMigrations(testutil.MinimalMigrations()).
-		WithSchema(`CREATE DATABASE analytics ENGINE = Atomic;
-CREATE TABLE analytics.events (
+		WithSchema(`CREATE DATABASE db ENGINE = Atomic;
+CREATE TABLE db.events (
     id UInt64,
     timestamp DateTime,
     event_type String

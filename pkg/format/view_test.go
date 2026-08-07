@@ -29,9 +29,9 @@ func TestFormatter_View(t *testing.T) {
 		},
 		{
 			name: "qualified view name",
-			sql:  "CREATE VIEW analytics.summary AS SELECT count() FROM events;",
+			sql:  "CREATE VIEW db.summary AS SELECT count() FROM events;",
 			expected: []string{
-				"CREATE VIEW `analytics`.`summary`",
+				"CREATE VIEW `db`.`summary`",
 				"AS SELECT count()",
 				"FROM `events`;",
 			},
@@ -104,9 +104,9 @@ func TestFormatter_MaterializedView(t *testing.T) {
 		},
 		{
 			name: "materialized view with engine and multiple clauses",
-			sql:  "CREATE MATERIALIZED VIEW analytics.mv_complex ENGINE = MergeTree() ORDER BY (date, user_id) PARTITION BY toYYYYMM(date) AS SELECT toDate(ts) AS date, user_id, count() AS cnt FROM events GROUP BY date, user_id;",
+			sql:  "CREATE MATERIALIZED VIEW db.mv_complex ENGINE = MergeTree() ORDER BY (date, user_id) PARTITION BY toYYYYMM(date) AS SELECT toDate(ts) AS date, user_id, count() AS cnt FROM events GROUP BY date, user_id;",
 			expected: []string{
-				"CREATE MATERIALIZED VIEW `analytics`.`mv_complex`",
+				"CREATE MATERIALIZED VIEW `db`.`mv_complex`",
 				"ENGINE = MergeTree() ORDER BY (`date`, `user_id`) PARTITION BY toYYYYMM(`date`)",
 				"AS SELECT",
 				"    toDate(`ts`) AS `date`,",
@@ -171,10 +171,10 @@ func TestFormatter_MaterializedView(t *testing.T) {
 		},
 		{
 			name: "complex materialized view with all features",
-			sql:  "CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS analytics.mv_full ON CLUSTER prod TO analytics.target ENGINE = AggregatingMergeTree() ORDER BY (date, region) PARTITION BY toYYYYMM(date) PRIMARY KEY (date, region) POPULATE AS SELECT toDate(ts) AS date, region, sum(amount) AS total FROM sales GROUP BY date, region;",
+			sql:  "CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS db.mv_full ON CLUSTER prod TO db.target ENGINE = AggregatingMergeTree() ORDER BY (date, region) PARTITION BY toYYYYMM(date) PRIMARY KEY (date, region) POPULATE AS SELECT toDate(ts) AS date, region, sum(amount) AS total FROM sales GROUP BY date, region;",
 			expected: []string{
-				"CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS `analytics`.`mv_full` ON CLUSTER `prod`",
-				"TO `analytics`.`target`",
+				"CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS `db`.`mv_full` ON CLUSTER `prod`",
+				"TO `db`.`target`",
 				"ENGINE = AggregatingMergeTree() ORDER BY (`date`, `region`) PARTITION BY toYYYYMM(`date`) PRIMARY KEY (`date`, `region`)",
 				"POPULATE",
 				"AS SELECT",
@@ -197,11 +197,11 @@ func TestFormatter_MaterializedView(t *testing.T) {
 		},
 		{
 			name: "refreshable materialized view every to without append",
-			sql:  "CREATE MATERIALIZED VIEW analytics.mv_hourly REFRESH EVERY 1 HOUR TO analytics.hourly_snapshot AS SELECT count() AS cnt FROM events;",
+			sql:  "CREATE MATERIALIZED VIEW db.mv_hourly REFRESH EVERY 1 HOUR TO db.hourly_snapshot AS SELECT count() AS cnt FROM events;",
 			expected: []string{
-				"CREATE MATERIALIZED VIEW `analytics`.`mv_hourly`",
+				"CREATE MATERIALIZED VIEW `db`.`mv_hourly`",
 				"REFRESH EVERY 1 HOUR",
-				"TO `analytics`.`hourly_snapshot`",
+				"TO `db`.`hourly_snapshot`",
 				"AS SELECT count() AS `cnt`",
 				"FROM `events`;",
 			},
@@ -237,8 +237,8 @@ func TestFormatter_ViewOperations(t *testing.T) {
 	}{
 		{
 			name:     "attach view",
-			sql:      "ATTACH VIEW analytics.summary;",
-			expected: "ATTACH VIEW `analytics`.`summary`;",
+			sql:      "ATTACH VIEW db.summary;",
+			expected: "ATTACH VIEW `db`.`summary`;",
 		},
 		{
 			name:     "attach view if not exists",
@@ -247,8 +247,8 @@ func TestFormatter_ViewOperations(t *testing.T) {
 		},
 		{
 			name:     "detach view",
-			sql:      "DETACH VIEW analytics.summary;",
-			expected: "DETACH VIEW `analytics`.`summary`;",
+			sql:      "DETACH VIEW db.summary;",
+			expected: "DETACH VIEW `db`.`summary`;",
 		},
 		{
 			name:     "detach view if exists",
@@ -262,8 +262,8 @@ func TestFormatter_ViewOperations(t *testing.T) {
 		},
 		{
 			name:     "drop view",
-			sql:      "DROP VIEW analytics.summary;",
-			expected: "DROP VIEW `analytics`.`summary`;",
+			sql:      "DROP VIEW db.summary;",
+			expected: "DROP VIEW `db`.`summary`;",
 		},
 		{
 			name:     "drop view if exists",

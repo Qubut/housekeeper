@@ -16,10 +16,10 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 	}{
 		{
 			name:    "regular database gets ON CLUSTER",
-			sql:     "CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics DB';",
+			sql:     "CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample DB';",
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "database", Name: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "database", Name: "db", HasCluster: true, ClusterName: "production"},
 			},
 		},
 		{
@@ -32,10 +32,10 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 		},
 		{
 			name:    "regular table gets ON CLUSTER",
-			sql:     "CREATE TABLE analytics.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;",
+			sql:     "CREATE TABLE db.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;",
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "table", Name: "events", Database: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "table", Name: "events", Database: "db", HasCluster: true, ClusterName: "production"},
 			},
 		},
 		{
@@ -48,10 +48,10 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 		},
 		{
 			name:    "regular dictionary gets ON CLUSTER",
-			sql:     "CREATE DICTIONARY analytics.users (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://api.example.com/users')) LAYOUT(HASHED()) LIFETIME(3600);",
+			sql:     "CREATE DICTIONARY db.users (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'http://api.example.com/users')) LAYOUT(HASHED()) LIFETIME(3600);",
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "dictionary", Name: "users", Database: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "dictionary", Name: "users", Database: "db", HasCluster: true, ClusterName: "production"},
 			},
 		},
 		{
@@ -64,10 +64,10 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 		},
 		{
 			name:    "regular view gets ON CLUSTER",
-			sql:     "CREATE VIEW analytics.summary AS SELECT count() as cnt FROM analytics.events;",
+			sql:     "CREATE VIEW db.summary AS SELECT count() as cnt FROM db.events;",
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "view", Name: "summary", Database: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "view", Name: "summary", Database: "db", HasCluster: true, ClusterName: "production"},
 			},
 		},
 		{
@@ -80,10 +80,10 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 		},
 		{
 			name:    "regular materialized view gets ON CLUSTER",
-			sql:     "CREATE MATERIALIZED VIEW analytics.mv_stats ENGINE = MergeTree() ORDER BY date AS SELECT toDate(timestamp) as date, count() as cnt FROM analytics.events GROUP BY date;",
+			sql:     "CREATE MATERIALIZED VIEW db.mv_stats ENGINE = MergeTree() ORDER BY date AS SELECT toDate(timestamp) as date, count() as cnt FROM db.events GROUP BY date;",
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "view", Name: "mv_stats", Database: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "view", Name: "mv_stats", Database: "db", HasCluster: true, ClusterName: "production"},
 			},
 		},
 		{
@@ -96,15 +96,15 @@ func TestHousekeeperObjectsNotOnCluster(t *testing.T) {
 		},
 		{
 			name: "mixed objects - only non-housekeeper get ON CLUSTER",
-			sql: `CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics DB';
+			sql: `CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample DB';
 CREATE DATABASE housekeeper ENGINE = Atomic COMMENT 'Migration tracking';
-CREATE TABLE analytics.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
+CREATE TABLE db.events (id UInt64) ENGINE = MergeTree() ORDER BY id;
 CREATE TABLE housekeeper.revisions (version String) ENGINE = MergeTree() ORDER BY version;`,
 			cluster: "production",
 			expectedResult: []ClusterExpectation{
-				{Type: "database", Name: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "database", Name: "db", HasCluster: true, ClusterName: "production"},
 				{Type: "database", Name: "housekeeper", HasCluster: false},
-				{Type: "table", Name: "events", Database: "analytics", HasCluster: true, ClusterName: "production"},
+				{Type: "table", Name: "events", Database: "db", HasCluster: true, ClusterName: "production"},
 				{Type: "table", Name: "revisions", Database: "housekeeper", HasCluster: false},
 			},
 		},
@@ -118,10 +118,10 @@ CREATE TABLE housekeeper.revisions (version String) ENGINE = MergeTree() ORDER B
 		},
 		{
 			name:    "no cluster specified - no injection",
-			sql:     "CREATE DATABASE analytics ENGINE = Atomic; CREATE DATABASE housekeeper ENGINE = Atomic;",
+			sql:     "CREATE DATABASE db ENGINE = Atomic; CREATE DATABASE housekeeper ENGINE = Atomic;",
 			cluster: "",
 			expectedResult: []ClusterExpectation{
-				{Type: "database", Name: "analytics", HasCluster: false},
+				{Type: "database", Name: "db", HasCluster: false},
 				{Type: "database", Name: "housekeeper", HasCluster: false},
 			},
 		},
@@ -156,7 +156,7 @@ func TestIsHousekeeperDatabaseUnit(t *testing.T) {
 		expected bool
 	}{
 		{name: "housekeeper database", database: "housekeeper", expected: true},
-		{name: "regular database", database: "analytics", expected: false},
+		{name: "regular database", database: "db", expected: false},
 		{name: "default database", database: "default", expected: false},
 		{name: "system database", database: "system", expected: false},
 		{name: "empty database", database: "", expected: false},
@@ -178,7 +178,7 @@ func TestGetDatabaseNameUnit(t *testing.T) {
 	}{
 		{name: "nil database", database: nil, expected: "default"},
 		{name: "empty database", database: stringPtr(""), expected: "default"},
-		{name: "explicit database", database: stringPtr("analytics"), expected: "analytics"},
+		{name: "explicit database", database: stringPtr("db"), expected: "db"},
 		{name: "housekeeper database", database: stringPtr("housekeeper"), expected: "housekeeper"},
 	}
 

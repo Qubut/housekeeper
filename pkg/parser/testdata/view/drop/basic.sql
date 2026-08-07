@@ -1,1 +1,1 @@
-DROP VIEW `analytics`.`daily_summary`;
+DROP VIEW `db`.`daily_summary`;

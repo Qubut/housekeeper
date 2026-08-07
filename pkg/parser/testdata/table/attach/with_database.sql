@@ -1,1 +1,1 @@
-ATTACH TABLE `analytics`.`events`;
+ATTACH TABLE `db`.`events`;

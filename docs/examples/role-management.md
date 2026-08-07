@@ -10,7 +10,7 @@ This page provides practical examples of using Housekeeper for ClickHouse role m
 db/schemas/_global/roles/
 ├── main.sql
 ├── customer_service_roles.sql
-├── analytics_roles.sql
+├── db_roles.sql
 ├── engineering_roles.sql
 └── admin_roles.sql
 ```
@@ -23,7 +23,7 @@ db/schemas/_global/roles/
 -- Import roles by department for better organization
 
 -- housekeeper:import customer_service_roles.sql
--- housekeeper:import analytics_roles.sql  
+-- housekeeper:import db_roles.sql  
 -- housekeeper:import engineering_roles.sql
 -- housekeeper:import admin_roles.sql
 
@@ -61,33 +61,33 @@ GRANT SELECT ON customers.payment_methods TO cs_agent;
 GRANT cs_agent TO cs_supervisor;
 GRANT UPDATE ON customers.orders TO cs_supervisor;
 GRANT INSERT ON customers.refunds TO cs_supervisor;
-GRANT SELECT ON analytics.customer_insights TO cs_supervisor;
+GRANT SELECT ON db.customer_insights TO cs_supervisor;
 
 -- Manager permissions (supervisor + reporting)
 GRANT cs_supervisor TO cs_manager;
-GRANT SELECT ON analytics.cs_performance TO cs_manager;
+GRANT SELECT ON db.cs_performance TO cs_manager;
 GRANT CREATE VIEW ON reports.customer_service TO cs_manager;
 ```
 
-**db/schemas/_global/roles/analytics_roles.sql**  
+**db/schemas/_global/roles/db_roles.sql**  
 ```sql
--- Analytics and data science roles
+-- Reporting and data science roles
 CREATE ROLE IF NOT EXISTS data_analyst;
 CREATE ROLE IF NOT EXISTS senior_analyst;
 CREATE ROLE IF NOT EXISTS data_scientist;
-CREATE ROLE IF NOT EXISTS analytics_engineer;
+CREATE ROLE IF NOT EXISTS reporting_engineer;
 
 -- Basic analyst permissions
-GRANT SELECT ON analytics.* TO data_analyst;
+GRANT SELECT ON db.* TO data_analyst;
 GRANT SELECT ON customers.aggregated_* TO data_analyst;
 GRANT SELECT ON products.performance_metrics TO data_analyst;
-GRANT SHOW TABLES ON analytics.*, customers.*, products.* TO data_analyst;
+GRANT SHOW TABLES ON db.*, customers.*, products.* TO data_analyst;
 
 -- Senior analyst permissions (analyst + detailed customer data)
 GRANT data_analyst TO senior_analyst;  
 GRANT SELECT ON customers.detailed_profiles TO senior_analyst;
 GRANT SELECT ON customers.purchase_history TO senior_analyst;
-GRANT CREATE VIEW ON analytics.custom_reports TO senior_analyst;
+GRANT CREATE VIEW ON db.custom_reports TO senior_analyst;
 
 -- Data scientist permissions (senior analyst + experimental access)
 GRANT senior_analyst TO data_scientist;
@@ -96,11 +96,11 @@ GRANT CREATE TABLE ON experiments.* TO data_scientist;
 GRANT INSERT, UPDATE, DELETE ON experiments.* TO data_scientist;
 GRANT SELECT ON ml_features.* TO data_scientist;
 
--- Analytics engineer permissions (data scientist + ETL)
-GRANT data_scientist TO analytics_engineer;
-GRANT INSERT, UPDATE ON analytics.* TO analytics_engineer;
-GRANT CREATE TABLE, DROP TABLE ON analytics.staging TO analytics_engineer;
-GRANT ALL ON etl_workspace.* TO analytics_engineer;
+-- Reporting engineer permissions (data scientist + ETL)
+GRANT data_scientist TO reporting_engineer;
+GRANT INSERT, UPDATE ON db.* TO reporting_engineer;
+GRANT CREATE TABLE, DROP TABLE ON db.staging TO reporting_engineer;
+GRANT ALL ON etl_workspace.* TO reporting_engineer;
 ```
 
 ### Service Account Permissions
@@ -121,7 +121,7 @@ GRANT INSERT ON audit.payment_events TO payment_processor;
 -- Recommendation engine - ML model serving
 GRANT SELECT ON customers.preferences, customers.purchase_history TO recommendation_engine;
 GRANT SELECT ON products.features, products.similarity_matrix TO recommendation_engine;
-GRANT INSERT ON analytics.recommendation_events TO recommendation_engine;
+GRANT INSERT ON db.recommendation_events TO recommendation_engine;
 ```
 
 ## Example 2: SaaS Multi-Tenant Platform
@@ -146,7 +146,7 @@ CREATE ROLE IF NOT EXISTS tenant_user_template;
 CREATE ROLE IF NOT EXISTS platform_admin;
 CREATE ROLE IF NOT EXISTS platform_support;
 CREATE ROLE IF NOT EXISTS platform_billing;
-CREATE ROLE IF NOT EXISTS platform_analytics;
+CREATE ROLE IF NOT EXISTS platform_metrics_role;
 
 -- Platform admin has access to all tenant data
 GRANT ALL ON *.* TO platform_admin WITH GRANT OPTION;
@@ -161,10 +161,10 @@ GRANT SELECT ON tenant_data.usage_metrics TO platform_billing;
 GRANT SELECT, INSERT, UPDATE ON billing.* TO platform_billing;
 GRANT SELECT ON tenant_data.subscription_info TO platform_billing;
 
--- Platform analytics has aggregated access across tenants
-GRANT SELECT ON analytics.tenant_aggregates TO platform_analytics;
-GRANT SELECT ON analytics.platform_metrics TO platform_analytics;
-GRANT CREATE VIEW ON analytics.reports TO platform_analytics;
+-- Platform db has aggregated access across tenants
+GRANT SELECT ON db.tenant_aggregates TO platform_metrics_role;
+GRANT SELECT ON db.platform_metrics TO platform_metrics_role;
+GRANT CREATE VIEW ON db.reports TO platform_metrics_role;
 ```
 
 ### Dynamic Tenant Role Creation
@@ -275,8 +275,8 @@ GRANT UPDATE ON data_quality.table_status TO data_quality_checker;
 -- Production data publisher
 CREATE ROLE IF NOT EXISTS data_publisher;
 GRANT SELECT ON processed_data.validated_* TO data_publisher;
-GRANT INSERT ON analytics.*, dashboard_data.* TO data_publisher;
-GRANT CREATE VIEW ON analytics.*, dashboard_data.* TO data_publisher;
+GRANT INSERT ON db.*, dashboard_data.* TO data_publisher;
+GRANT CREATE VIEW ON db.*, dashboard_data.* TO data_publisher;
 ```
 
 ### Scheduled Job Roles
@@ -290,8 +290,8 @@ GRANT data_ingester, data_transformer, data_quality_checker TO daily_etl_job;
 -- Hourly aggregation job
 CREATE ROLE IF NOT EXISTS hourly_aggregator  
 SETTINGS max_memory_usage = 5000000000, max_execution_time = 600; -- 10 minutes
-GRANT SELECT ON analytics.events TO hourly_aggregator;
-GRANT INSERT, UPDATE ON analytics.hourly_metrics TO hourly_aggregator;
+GRANT SELECT ON db.events TO hourly_aggregator;
+GRANT INSERT, UPDATE ON db.hourly_metrics TO hourly_aggregator;
 
 -- Cleanup job
 CREATE ROLE IF NOT EXISTS cleanup_job;
@@ -320,7 +320,7 @@ GRANT CREATE VIEW ON staging_*.* TO staging_developer;
 
 -- Production environment - read-only for developers
 CREATE ROLE IF NOT EXISTS prod_developer;
-GRANT SELECT ON prod_analytics.aggregated_* TO prod_developer; -- Only aggregated data
+GRANT SELECT ON prod_db.aggregated_* TO prod_developer; -- Only aggregated data
 GRANT SELECT ON prod_logs.application_* TO prod_developer; -- Application logs only
 GRANT SHOW TABLES ON prod_*.* TO prod_developer;
 ```
@@ -360,7 +360,7 @@ CREATE ROLE IF NOT EXISTS base_service;
 
 -- Step 2: Create department roles
 CREATE ROLE IF NOT EXISTS engineering_team;
-CREATE ROLE IF NOT EXISTS analytics_team;
+CREATE ROLE IF NOT EXISTS reporting_team;
 CREATE ROLE IF NOT EXISTS business_team;
 
 -- Step 3: Create application roles
@@ -376,24 +376,24 @@ GRANT SELECT ON system.settings TO base_service;
 ### Role Evolution Migration
 
 ```sql
--- Migration: Split analytics_user into specialized roles
+-- Migration: Split reporting_user into specialized roles
 -- Old role (to be deprecated):
--- CREATE ROLE analytics_user;
--- GRANT SELECT ON analytics.* TO analytics_user;
+-- CREATE ROLE reporting_user;
+-- GRANT SELECT ON db.* TO reporting_user;
 
 -- New specialized roles:
 CREATE ROLE IF NOT EXISTS data_analyst;
 CREATE ROLE IF NOT EXISTS data_scientist;  
-CREATE ROLE IF NOT EXISTS analytics_engineer;
+CREATE ROLE IF NOT EXISTS reporting_engineer;
 
 -- Migrate permissions from old role to new roles
-GRANT SELECT ON analytics.reports, analytics.dashboards TO data_analyst;
-GRANT SELECT ON analytics.*, raw_data.* TO data_scientist;
-GRANT SELECT, INSERT, UPDATE ON analytics.* TO analytics_engineer;
-GRANT CREATE TABLE ON analytics.experiments TO data_scientist;
+GRANT SELECT ON db.reports, db.dashboards TO data_analyst;
+GRANT SELECT ON db.*, raw_data.* TO data_scientist;
+GRANT SELECT, INSERT, UPDATE ON db.* TO reporting_engineer;
+GRANT CREATE TABLE ON db.experiments TO data_scientist;
 
 -- Grant old role to new roles for backward compatibility (temporary)
-GRANT data_analyst TO analytics_user; -- Will be removed in next migration
+GRANT data_analyst TO reporting_user; -- Will be removed in next migration
 ```
 
 ### Role Consolidation Migration  
@@ -434,8 +434,8 @@ CREATE USER test_analyst;
 GRANT data_analyst TO test_analyst;
 
 -- Test queries as that user (run with different connection)
--- SELECT * FROM analytics.reports; -- Should work
--- INSERT INTO analytics.reports VALUES (...); -- Should fail
+-- SELECT * FROM db.reports; -- Should work
+-- INSERT INTO db.reports VALUES (...); -- Should fail
 -- SELECT * FROM raw_data.sensitive; -- Should fail
 
 -- Cleanup test user
@@ -449,7 +449,7 @@ DROP USER test_analyst;
 # validate_roles.sh - Validate role migrations
 
 # Check that all expected roles exist
-expected_roles=("data_analyst" "data_scientist" "analytics_engineer")
+expected_roles=("data_analyst" "data_scientist" "reporting_engineer")
 for role in "${expected_roles[@]}"; do
   if ! clickhouse-client -q "SELECT name FROM system.roles WHERE name = '$role'" | grep -q "$role"; then
     echo "ERROR: Role $role not found"
@@ -461,7 +461,7 @@ done
 clickhouse-client -q "
 SELECT grantee_name, privilege, database, table 
 FROM system.grants 
-WHERE grantee_name IN ('data_analyst', 'data_scientist', 'analytics_engineer')
+WHERE grantee_name IN ('data_analyst', 'data_scientist', 'reporting_engineer')
 ORDER BY grantee_name, database, table
 " > role_permissions.txt
 

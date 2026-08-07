@@ -147,14 +147,14 @@ func processAllDiffsInOrder[T diffProcessor](diffs []T, order []string) []string
 // Example:
 //
 //	currentSQL := `
-//		CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Old comment';
-//		CREATE TABLE analytics.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;
+//		CREATE DATABASE db ENGINE = Atomic COMMENT 'Old comment';
+//		CREATE TABLE db.events (id UInt64, name String) ENGINE = MergeTree() ORDER BY id;
 //	`
 //	targetSQL := `
-//		CREATE DATABASE analytics ENGINE = Atomic COMMENT 'New comment';
-//		CREATE TABLE analytics.events (id UInt64, name String, timestamp DateTime) ENGINE = MergeTree() ORDER BY id;
-//		CREATE DICTIONARY analytics.users_dict (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'test')) LAYOUT(FLAT()) LIFETIME(600);
-//		CREATE VIEW analytics.daily_stats AS SELECT date, count() FROM events GROUP BY date;
+//		CREATE DATABASE db ENGINE = Atomic COMMENT 'New comment';
+//		CREATE TABLE db.events (id UInt64, name String, timestamp DateTime) ENGINE = MergeTree() ORDER BY id;
+//		CREATE DICTIONARY db.users_dict (id UInt64) PRIMARY KEY id SOURCE(HTTP(url 'test')) LAYOUT(FLAT()) LIFETIME(600);
+//		CREATE VIEW db.daily_stats AS SELECT date, count() FROM events GROUP BY date;
 //	`
 //
 //	current, _ := parser.ParseString(currentSQL)

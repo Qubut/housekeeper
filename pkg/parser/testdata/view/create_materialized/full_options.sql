@@ -1,5 +1,5 @@
-CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS `analytics`.`mv_complex` ON CLUSTER `production`
-TO `analytics`.`destination_table`
+CREATE OR REPLACE MATERIALIZED VIEW IF NOT EXISTS `db`.`mv_complex` ON CLUSTER `production`
+TO `db`.`destination_table`
 ENGINE = ReplacingMergeTree(`version`)
 POPULATE
 AS SELECT

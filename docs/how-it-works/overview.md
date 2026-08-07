@@ -77,7 +77,7 @@ Housekeeper processes schema files through a sophisticated compilation pipeline:
 #### Import Resolution
 ```sql
 -- db/main.sql
-CREATE DATABASE analytics ENGINE = Atomic;
+CREATE DATABASE db ENGINE = Atomic;
 -- housekeeper:import schemas/tables/events.sql
 -- housekeeper:import schemas/views/daily_stats.sql
 ```
@@ -92,12 +92,12 @@ The compilation process:
 #### Example Compilation Flow
 ```
 db/main.sql
-├── schemas/analytics/database.sql
-├── schemas/analytics/tables/
+├── schemas/db/database.sql
+├── schemas/db/tables/
 │   ├── users.sql
 │   ├── events.sql
 │   └── products.sql
-└── schemas/analytics/views/
+└── schemas/db/views/
     ├── daily_stats.sql (depends on events.sql)
     └── user_summary.sql (depends on users.sql)
 
@@ -419,16 +419,16 @@ Within each type:
 ### Dependency Resolution Example
 ```sql
 -- Schema with dependencies:
-CREATE DATABASE analytics;
-CREATE TABLE analytics.events (...);
-CREATE DICTIONARY analytics.events_dict SOURCE(CLICKHOUSE(...'analytics.events'...));
-CREATE VIEW analytics.summary AS SELECT * FROM analytics.events;
+CREATE DATABASE db;
+CREATE TABLE db.events (...);
+CREATE DICTIONARY db.events_dict SOURCE(CLICKHOUSE(...'db.events'...));
+CREATE VIEW db.summary AS SELECT * FROM db.events;
 
 -- Generated order:
-1. CREATE DATABASE analytics;
-2. CREATE TABLE analytics.events;
-3. CREATE DICTIONARY analytics.events_dict;  -- Depends on events table
-4. CREATE VIEW analytics.summary;            -- Depends on events table
+1. CREATE DATABASE db;
+2. CREATE TABLE db.events;
+3. CREATE DICTIONARY db.events_dict;  -- Depends on events table
+4. CREATE VIEW db.summary;            -- Depends on events table
 ```
 
 ## Error Handling and Validation

@@ -1,1 +1,1 @@
-DETACH TABLE `analytics`.`mv_joins` PERMANENTLY SYNC;
+DETACH TABLE `db`.`mv_joins` PERMANENTLY SYNC;

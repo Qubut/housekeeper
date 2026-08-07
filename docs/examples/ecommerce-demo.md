@@ -1,6 +1,6 @@
 # E-commerce Demo
 
-This comprehensive example demonstrates how to build and manage a complete e-commerce analytics platform using Housekeeper and ClickHouse. The demo showcases real-world patterns, best practices, and advanced ClickHouse features.
+This comprehensive example demonstrates how to build and manage a complete e-commerce db platform using Housekeeper and ClickHouse. The demo showcases real-world patterns, best practices, and advanced ClickHouse features.
 
 ## Overview
 
@@ -9,7 +9,7 @@ The e-commerce demo models a typical online shopping platform with:
 - **Customer data management** with user profiles and segmentation
 - **Product catalog** with categories and inventory tracking
 - **Order processing** with line items and financial data
-- **Event tracking** for user behavior analytics
+- **Event tracking** for user behavior db
 - **Real-time dashboards** with materialized views
 - **External integrations** with country and ML services
 
@@ -152,10 +152,10 @@ LIFETIME(MIN 300 MAX 600)
 SETTINGS(max_threads = 4);
 ```
 
-### Real-time Analytics
+### Real-time aggregation
 
 #### Product Performance Metrics
-Continuous aggregation of product analytics:
+Continuous aggregation of product db:
 
 ```sql
 CREATE MATERIALIZED VIEW ecommerce.mv_product_stats ON CLUSTER demo
@@ -257,7 +257,7 @@ LIMIT 50;
 ### User Segmentation Analysis
 
 ```sql
--- Advanced user analytics with external data
+-- Advanced user db with external data
 SELECT
     us.segment_name,
     count(DISTINCT u.user_id) as user_count,
@@ -291,9 +291,9 @@ CREATE TABLE ecommerce.order_items (...);
 ALTER TABLE ecommerce.users ADD COLUMN total_spent Decimal64(2) DEFAULT 0;
 ```
 
-### Migration 3: Analytics Enhancement
+### Migration 3: Aggregation Enhancement
 ```sql
--- 20240817120443.sql - Add analytics features
+-- 20240817120443.sql - Add db features
 CREATE DICTIONARY ecommerce.countries_dict (...);
 CREATE DICTIONARY ecommerce.user_segments_dict (...);
 CREATE MATERIALIZED VIEW ecommerce.mv_product_stats (...);
@@ -323,7 +323,7 @@ CREATE VIEW ecommerce.daily_sales AS SELECT ...;
 - **Authentication**: Secure external API access
 - **Refresh strategies**: Balanced between freshness and performance
 
-### 5. Real-time Analytics
+### 5. Real-time aggregation
 - **Materialized views**: Continuous aggregation for dashboards
 - **SummingMergeTree**: Efficient storage for metric data
 - **Window functions**: Advanced analytical queries
@@ -415,4 +415,4 @@ ORDER BY elapsed DESC
 LIMIT 10;
 ```
 
-This e-commerce demo provides a comprehensive foundation for building production-ready analytics platforms with ClickHouse and Housekeeper, demonstrating real-world patterns and best practices.
+This e-commerce demo provides a comprehensive foundation for building production-ready db platforms with ClickHouse and Housekeeper, demonstrating real-world patterns and best practices.

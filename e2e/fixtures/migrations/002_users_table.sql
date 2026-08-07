@@ -1,5 +1,5 @@
 -- Users table with comprehensive ClickHouse features
-CREATE TABLE analytics.users (
+CREATE TABLE db.users (
     id UInt64,
     email String,
     name String,

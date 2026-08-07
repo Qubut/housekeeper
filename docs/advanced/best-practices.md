@@ -11,7 +11,7 @@ Production-proven guidelines for using Housekeeper effectively in real-world Cli
 db/
 ├── main.sql                    # Main orchestration file
 ├── schemas/
-│   ├── analytics/              # Analytics database
+│   ├── db/              # Sample database
 │   │   ├── schema.sql          # Creates database and imports subdirectories
 │   │   ├── tables/
 │   │   │   ├── events.sql
@@ -47,10 +47,10 @@ db/
 -- 1. Reference data first (no dependencies)
 -- housekeeper:import schemas/reference/schema.sql
 
--- 2. Core analytics database
--- housekeeper:import schemas/analytics/schema.sql
+-- 2. Core sample database
+-- housekeeper:import schemas/db/schema.sql
 
--- 3. Reporting database (depends on analytics)
+-- 3. Reporting database (depends on db)
 -- housekeeper:import schemas/reporting/schema.sql
 ```
 
@@ -58,9 +58,9 @@ db/
 Each database's `schema.sql` creates the database and imports its objects:
 
 ```sql
--- schemas/analytics/schema.sql
--- Create the analytics database
-CREATE DATABASE analytics ENGINE = Atomic COMMENT 'Analytics database';
+-- schemas/db/schema.sql
+-- Create the sample database
+CREATE DATABASE db ENGINE = Atomic COMMENT 'Sample database';
 
 -- Import tables first (no dependencies within database)
 -- housekeeper:import tables/users.sql
@@ -147,7 +147,7 @@ jobs:
 #### Time-Series Tables
 ```sql
 -- Optimal design for high-volume event data
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime64(3),              -- Millisecond precision
     user_id UInt64,
     event_type LowCardinality(String),    -- Limited set of values
@@ -185,7 +185,7 @@ SETTINGS index_granularity = 8192;
 #### Aggregation Tables
 ```sql
 -- Pre-aggregated data for fast queries
-CREATE TABLE analytics.daily_user_stats (
+CREATE TABLE db.daily_user_stats (
     date Date,
     user_id UInt64,
     event_count UInt32,
@@ -230,14 +230,14 @@ PARTITION BY (toYYYYMM(timestamp), event_type)  -- When filtering by both
 #### Index Optimization
 ```sql
 -- Add skipping indexes for common filters
-ALTER TABLE analytics.events 
+ALTER TABLE db.events 
 ADD INDEX idx_user_id user_id TYPE minmax GRANULARITY 4;
 
-ALTER TABLE analytics.events 
+ALTER TABLE db.events 
 ADD INDEX idx_event_type event_type TYPE set(100) GRANULARITY 1;
 
 -- For string prefix searches
-ALTER TABLE analytics.events 
+ALTER TABLE db.events 
 ADD INDEX idx_url_prefix page_url TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 1;
 ```
 
@@ -294,7 +294,7 @@ CREATE TABLE optimized_table (
 #### Development Process
 ```bash
 # 1. Make schema changes
-vim db/schemas/analytics/tables/events.sql
+vim db/schemas/db/tables/events.sql
 
 # 2. Validate syntax
 housekeeper schema compile
@@ -415,8 +415,8 @@ if ! diff -q current_schema.sql expected_schema.sql; then
 fi
 
 # 2. Run basic queries to verify data integrity
-clickhouse-client --query "SELECT count() FROM analytics.events"
-clickhouse-client --query "SELECT max(timestamp) FROM analytics.events"
+clickhouse-client --query "SELECT count() FROM db.events"
+clickhouse-client --query "SELECT max(timestamp) FROM db.events"
 
 # 3. Check for any errors in ClickHouse logs
 docker logs clickhouse-server 2>&1 | grep -i error | tail -10
@@ -429,7 +429,7 @@ echo "Post-migration validation complete ✓"
 #### Rollback Strategy
 ```sql
 -- For simple additions (safe to ignore)
-ALTER TABLE analytics.events DROP COLUMN IF EXISTS new_column;
+ALTER TABLE db.events DROP COLUMN IF EXISTS new_column;
 
 -- For complex changes (may require data migration)
 -- 1. Stop application writes
@@ -504,18 +504,18 @@ echo "Rollback complete. Please verify data integrity."
 #### Cluster-Aware Schema
 ```sql
 -- All DDL includes ON CLUSTER for distributed execution
-CREATE DATABASE analytics ON CLUSTER production_cluster 
+CREATE DATABASE db ON CLUSTER production_cluster 
 ENGINE = Atomic;
 
-CREATE TABLE analytics.events ON CLUSTER production_cluster (
+CREATE TABLE db.events ON CLUSTER production_cluster (
     -- table definition
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')
 ORDER BY timestamp;
 
 -- Distributed table for queries across shards
-CREATE TABLE analytics.events_distributed ON CLUSTER production_cluster
-AS analytics.events
-ENGINE = Distributed(production_cluster, analytics, events, rand());
+CREATE TABLE db.events_distributed ON CLUSTER production_cluster
+AS db.events
+ENGINE = Distributed(production_cluster, db, events, rand());
 ```
 
 ### Cluster Deployment
@@ -654,7 +654,7 @@ ORDER BY total_bytes DESC;
         <profile>default</profile>
         <quota>default</quota>
         <allow_databases>
-            <database>analytics</database>
+            <database>db</database>
             <database>reporting</database>
         </allow_databases>
         <access_management>1</access_management>
@@ -685,7 +685,7 @@ BACKUP_DIR="/backups/clickhouse"
 housekeeper schema dump --config production.yaml > "$BACKUP_DIR/schema_$DATE.sql"
 
 # 2. Create data backup (for critical tables)
-clickhouse-client --query "BACKUP TABLE analytics.users TO S3('s3://backups/users_$DATE.tar')"
+clickhouse-client --query "BACKUP TABLE db.users TO S3('s3://backups/users_$DATE.tar')"
 
 # 3. Verify backup integrity
 if [ -s "$BACKUP_DIR/schema_$DATE.sql" ]; then
@@ -706,17 +706,17 @@ find "$BACKUP_DIR" -name "schema_*.sql" -mtime +30 -delete
 #### Inline Documentation
 ```sql
 -- Use comprehensive comments
-CREATE DATABASE analytics 
+CREATE DATABASE db 
 ENGINE = Atomic 
-COMMENT 'Analytics database v2.1 - Contains user behavior and business metrics';
+COMMENT 'Sample database v2.1 - Contains user behavior and business metrics';
 
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     id UUID DEFAULT generateUUIDv4() COMMENT 'Unique event identifier',
     user_id UInt64 COMMENT 'Reference to users.profiles.id',
     event_type LowCardinality(String) COMMENT 'Event category: page_view, click, purchase, etc.',
     timestamp DateTime COMMENT 'Event occurrence time in UTC',
     
-    -- Derived fields for analytics
+    -- Derived fields for db
     date Date MATERIALIZED toDate(timestamp) COMMENT 'Partition key and aggregation dimension',
     hour UInt8 MATERIALIZED toHour(timestamp) COMMENT 'Hourly aggregation dimension'
 ) 

@@ -1,5 +1,5 @@
 -- First create a source table for the dictionary
-CREATE TABLE IF NOT EXISTS analytics.countries (
+CREATE TABLE IF NOT EXISTS db.countries (
     id UInt64,
     country_code String,
     country_name String,
@@ -8,13 +8,13 @@ CREATE TABLE IF NOT EXISTS analytics.countries (
 ORDER BY id;
 
 -- Insert test data
-INSERT INTO analytics.countries VALUES
+INSERT INTO db.countries VALUES
 (1, 'US', 'United States', 331000000),
 (2, 'CA', 'Canada', 38000000),
 (3, 'GB', 'United Kingdom', 67000000);
 
 -- Complex dictionary with local table source
-CREATE DICTIONARY analytics.geo_data (
+CREATE DICTIONARY db.geo_data (
     id UInt64,
     country_code String,
     country_name String,
@@ -22,7 +22,7 @@ CREATE DICTIONARY analytics.geo_data (
 ) PRIMARY KEY id
 SOURCE(
     CLICKHOUSE(
-        db 'analytics'
+        db 'db'
         table 'countries'
     )
 )

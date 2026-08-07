@@ -1,4 +1,4 @@
-CREATE TABLE `analytics`.`events` (
+CREATE TABLE `db`.`events` (
     `id`      UInt64,
     `user_id` UInt64
 )

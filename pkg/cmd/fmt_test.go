@@ -299,9 +299,9 @@ func TestFmtCommand_ComplexSQL(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sqlFile := filepath.Join(tmpDir, "complex.sql")
-	complexSQL := `CREATE DATABASE analytics ENGINE=Atomic;
-CREATE TABLE analytics.events(id UInt64,user_id UInt64,timestamp DateTime DEFAULT now(),data Map(String,String))ENGINE=MergeTree()ORDER BY(user_id,timestamp)PARTITION BY toYYYYMM(timestamp);
-CREATE MATERIALIZED VIEW analytics.daily_stats ENGINE=MergeTree()ORDER BY date AS SELECT toDate(timestamp)as date,count()as events FROM analytics.events GROUP BY date;`
+	complexSQL := `CREATE DATABASE db ENGINE=Atomic;
+CREATE TABLE db.events(id UInt64,user_id UInt64,timestamp DateTime DEFAULT now(),data Map(String,String))ENGINE=MergeTree()ORDER BY(user_id,timestamp)PARTITION BY toYYYYMM(timestamp);
+CREATE MATERIALIZED VIEW db.daily_stats ENGINE=MergeTree()ORDER BY date AS SELECT toDate(timestamp)as date,count()as events FROM db.events GROUP BY date;`
 
 	err := os.WriteFile(sqlFile, []byte(complexSQL), consts.ModeFile)
 	require.NoError(t, err)

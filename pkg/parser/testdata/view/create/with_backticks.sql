@@ -1,4 +1,4 @@
-CREATE VIEW `analytics-db`.`daily-summary`
+CREATE VIEW `app-db`.`daily-summary`
 AS SELECT
     `order-date` AS `date`,
     count(*) AS `total-orders`

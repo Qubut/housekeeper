@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     REMOVE SAMPLE BY;

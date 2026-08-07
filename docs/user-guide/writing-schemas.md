@@ -56,9 +56,9 @@ For larger projects, split schemas into logical modules:
 -- housekeeper:import schemas/dictionaries/countries.sql
 -- housekeeper:import schemas/dictionaries/categories.sql
 
--- Analytics views
+-- Reporting views
 -- housekeeper:import schemas/views/sales_summary.sql
--- housekeeper:import schemas/views/user_analytics.sql
+-- housekeeper:import schemas/views/user_db.sql
 ```
 
 ### Import Order and Dependencies
@@ -100,8 +100,8 @@ Global objects like roles are cluster-wide and may be referenced by other object
 CREATE ROLE IF NOT EXISTS data_writer;
 
 -- Later in the schema, tables may reference the role in grants
-CREATE TABLE analytics.events (...) ENGINE = MergeTree() ORDER BY timestamp;
-GRANT INSERT ON analytics.events TO data_writer;
+CREATE TABLE db.events (...) ENGINE = MergeTree() ORDER BY timestamp;
+GRANT INSERT ON db.events TO data_writer;
 ```
 
 See the [Role Management](role-management.md) guide for comprehensive role management patterns.
@@ -112,15 +112,15 @@ See the [Role Management](role-management.md) guide for comprehensive role manag
 
 ```sql
 -- Basic database
-CREATE DATABASE analytics ENGINE = Atomic;
+CREATE DATABASE db ENGINE = Atomic;
 
 -- Database with cluster support
-CREATE DATABASE analytics ON CLUSTER my_cluster ENGINE = Atomic;
+CREATE DATABASE db ON CLUSTER my_cluster ENGINE = Atomic;
 
 -- Database with comment
-CREATE DATABASE analytics 
+CREATE DATABASE db 
 ENGINE = Atomic 
-COMMENT 'Analytics and reporting database';
+COMMENT 'Reporting and reporting database';
 
 -- Database with external engine
 CREATE DATABASE mysql_replica 
@@ -153,7 +153,7 @@ ENGINE = PostgreSQL('postgres-host:5432', 'database', 'user', 'password');
 
 ```sql
 -- Basic MergeTree for time-series data
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     user_id UInt64,
     event_type String,
@@ -174,7 +174,7 @@ ENGINE = ReplacingMergeTree(updated_at)  -- Version column
 ORDER BY id;
 
 -- SummingMergeTree for pre-aggregated data
-CREATE TABLE analytics.daily_stats (
+CREATE TABLE db.daily_stats (
     date Date,
     metric String,
     value UInt64
@@ -371,11 +371,11 @@ CREATE TABLE privacy_aware (
     timestamp DateTime,
     user_id UInt64,
     personal_data Nullable(String) TTL timestamp + INTERVAL 30 DAY,
-    analytics_data String
+    sample_data String
 )
 ENGINE = MergeTree()
 ORDER BY timestamp
-TTL timestamp + INTERVAL 2 YEAR;        -- Keep analytics longer
+TTL timestamp + INTERVAL 2 YEAR;        -- Keep db longer
 ```
 
 ### CREATE TABLE AS - Schema Copying
@@ -421,8 +421,8 @@ CREATE TABLE events_all ON CLUSTER production AS events_local
 ENGINE = Distributed(production, currentDatabase(), events_local, rand());
 
 -- Create distributed table with specific sharding
-CREATE TABLE events_distributed ON CLUSTER analytics AS events_local  
-ENGINE = Distributed(analytics, currentDatabase(), events_local, cityHash64(user_id));
+CREATE TABLE events_distributed ON CLUSTER db AS events_local  
+ENGINE = Distributed(db, currentDatabase(), events_local, cityHash64(user_id));
 ```
 
 #### Backup Table Pattern
@@ -509,7 +509,7 @@ LIFETIME(86400);                         -- Reload daily
 
 ```sql
 -- Complex dictionary with multiple attributes
-CREATE DICTIONARY analytics.user_segments (
+CREATE DICTIONARY db.user_segments (
     user_id UInt64 IS_OBJECT_ID,           -- Object identifier
     parent_user_id UInt64 DEFAULT 0 HIERARCHICAL,  -- Hierarchy support
     segment String INJECTIVE,              -- One-to-one mapping
@@ -586,12 +586,12 @@ LIFETIME(0);                             -- Never reload (static data)
 
 ```sql
 -- Basic view for common queries
-CREATE VIEW analytics.active_users AS
+CREATE VIEW db.active_users AS
 SELECT 
     user_id,
     max(timestamp) as last_activity,
     count() as event_count
-FROM analytics.events
+FROM db.events
 WHERE timestamp >= now() - INTERVAL 30 DAY
 GROUP BY user_id
 HAVING event_count > 10;
@@ -616,7 +616,7 @@ GROUP BY o.id, o.user_id, u.email, o.total_amount, o.created_at;
 
 ```sql
 -- Real-time aggregation
-CREATE MATERIALIZED VIEW analytics.hourly_stats
+CREATE MATERIALIZED VIEW db.hourly_stats
 ENGINE = SummingMergeTree((event_count, unique_users))
 ORDER BY (date, hour, event_type)
 POPULATE                                 -- Backfill existing data
@@ -626,25 +626,25 @@ AS SELECT
     event_type,
     count() as event_count,
     uniq(user_id) as unique_users
-FROM analytics.events
+FROM db.events
 GROUP BY date, hour, event_type;
 
 -- Materialized view with target table
-CREATE TABLE analytics.user_stats_target (
+CREATE TABLE db.user_stats_target (
     date Date,
     user_id UInt64,
     event_count UInt32,
     last_activity DateTime
 ) ENGINE = ReplacingMergeTree(last_activity) ORDER BY (date, user_id);
 
-CREATE MATERIALIZED VIEW analytics.user_stats_mv
-TO analytics.user_stats_target
+CREATE MATERIALIZED VIEW db.user_stats_mv
+TO db.user_stats_target
 AS SELECT 
     toDate(timestamp) as date,
     user_id,
     count() as event_count,
     max(timestamp) as last_activity
-FROM analytics.events
+FROM db.events
 GROUP BY date, user_id;
 ```
 
@@ -654,7 +654,7 @@ GROUP BY date, user_id;
 
 ```sql
 -- Single table for multiple entity types
-CREATE TABLE analytics.entity_events (
+CREATE TABLE db.entity_events (
     timestamp DateTime,
     entity_type LowCardinality(String),   -- 'user', 'product', 'order'
     entity_id UInt64,
@@ -753,8 +753,8 @@ GROUP BY timestamp, metric_name, tags;
 
 ```sql
 -- Use clear, descriptive names
-CREATE DATABASE user_analytics;          -- Not: db1, analytics_db
-CREATE TABLE user_analytics.page_views;  -- Not: pv, page_view_table
+CREATE DATABASE user_metrics;          -- Not: db1, metrics_db
+CREATE TABLE user_db.page_views;  -- Not: pv, page_view_table
 
 -- Use consistent prefixes
 CREATE MATERIALIZED VIEW mv_daily_stats;  -- Prefix: mv_
@@ -785,7 +785,7 @@ COMMENT 'User profiles and account information';
 
 ```sql
 -- Optimize for your query patterns
-CREATE TABLE analytics.events (
+CREATE TABLE db.events (
     timestamp DateTime,
     user_id UInt64,
     event_type LowCardinality(String),

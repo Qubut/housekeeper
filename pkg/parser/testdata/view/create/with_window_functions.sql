@@ -1,4 +1,4 @@
-CREATE VIEW `analytics`.`user_rankings`
+CREATE VIEW `db`.`user_rankings`
 AS SELECT
     `user_id`,
     `name`,

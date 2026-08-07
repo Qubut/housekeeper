@@ -5,7 +5,7 @@ SELECT
     toDate(`timestamp`) AS `date`,
     count() AS `events`,
     uniq(`session_id`) AS `sessions`
-FROM `analytics`.`events`
+FROM `db`.`events`
 WHERE `date` >= '2024-01-01'
 GROUP BY `user_id`, `date`
 HAVING `events` > 10
@@ -17,8 +17,8 @@ SELECT
     `u`.`name`,
     `e`.`event_type`,
     count(*) AS `event_count`
-FROM `analytics`.`events` AS `e`
-LEFT JOIN `analytics`.`users_dict` AS `u` ON `e`.`user_id` = `u`.`id`
+FROM `db`.`events` AS `e`
+LEFT JOIN `db`.`users_dict` AS `u` ON `e`.`user_id` = `u`.`id`
 WHERE `e`.`timestamp` >= today() - INTERVAL 7 DAY
 GROUP BY `e`.`user_id`, `u`.`name`, `e`.`event_type`
 ORDER BY `event_count` DESC;
@@ -29,7 +29,7 @@ WITH
             toDate(`timestamp`) AS `date`,
             count() AS `total_events`,
             uniq(`user_id`) AS `unique_users`
-        FROM `analytics`.`events`
+        FROM `db`.`events`
         GROUP BY `date`
     ),
     `weekly_stats` AS (

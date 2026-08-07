@@ -258,13 +258,13 @@ func TestBootstrapCommand_WithExistingSchemas(t *testing.T) {
 	// Test bootstrap with existing schema files
 	fixture := testutil.TestProject(t).
 		WithSchemaFiles(map[string]string{
-			"analytics/schema.sql": testutil.AnalyticsSchema(),
+			"db/schema.sql": testutil.SampleSchema(),
 			"logs/schema.sql":      "CREATE DATABASE logs ENGINE = Atomic;",
 		})
 	defer fixture.Cleanup()
 
 	// Verify schema files exist
-	require.FileExists(t, fixture.GetSchemasDir()+"/analytics/schema.sql")
+	require.FileExists(t, fixture.GetSchemasDir()+"/db/schema.sql")
 	require.FileExists(t, fixture.GetSchemasDir()+"/logs/schema.sql")
 
 	command := bootstrap(fixture.Project, fixture.Config)

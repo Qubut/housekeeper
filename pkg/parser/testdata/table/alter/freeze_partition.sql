@@ -1,2 +1,2 @@
-ALTER TABLE `analytics`.`events`
+ALTER TABLE `db`.`events`
     FREEZE PARTITION '202301';

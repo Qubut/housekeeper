@@ -1,4 +1,4 @@
-CREATE OR REPLACE DICTIONARY `analytics`.`users_dict` (
+CREATE OR REPLACE DICTIONARY `db`.`users_dict` (
     `id`    UInt64,
     `name`  String,
     `email` String DEFAULT ''

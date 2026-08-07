@@ -25,8 +25,8 @@
 //	// Result: `users`
 //
 //	// Qualified identifier
-//	qualified := utils.BacktickIdentifier("analytics.events")
-//	// Result: `analytics`.`events`
+//	qualified := utils.BacktickIdentifier("db.events")
+//	// Result: `db`.`events`
 //
 //	// Already backticked (not double-backticked)
 //	existing := utils.BacktickIdentifier("`users`")
@@ -37,10 +37,10 @@
 // Specialized function for database-qualified names, commonly used for tables,
 // views, and dictionaries:
 //
-//	db := "analytics"
+//	db := "db"
 //	table := "events"
 //	qualified := utils.BacktickQualifiedName(&db, table)
-//	// Result: `analytics`.`events`
+//	// Result: `db`.`events`
 //
 //	// Without database prefix
 //	simple := utils.BacktickQualifiedName(nil, "users")

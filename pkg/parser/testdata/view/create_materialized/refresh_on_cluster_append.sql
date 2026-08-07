@@ -1,4 +1,4 @@
-CREATE MATERIALIZED VIEW `analytics`.`mv_refresh` ON CLUSTER '{cluster}'
+CREATE MATERIALIZED VIEW `db`.`mv_refresh` ON CLUSTER '{cluster}'
 REFRESH EVERY 30 SECONDS APPEND
-TO `analytics`.`target_table`
+TO `db`.`target_table`
 AS SELECT 1 AS `x`;

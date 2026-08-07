@@ -1,1 +1,1 @@
-ATTACH TABLE `analytics`.`mv_aggregated`;
+ATTACH TABLE `db`.`mv_aggregated`;

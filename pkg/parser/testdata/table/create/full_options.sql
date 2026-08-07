@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE IF NOT EXISTS `analytics`.`events` ON CLUSTER `production` (
+CREATE OR REPLACE TABLE IF NOT EXISTS `db`.`events` ON CLUSTER `production` (
     `id`         UInt64,
     `user_id`    UInt64,
     `event_type` LowCardinality(String),
