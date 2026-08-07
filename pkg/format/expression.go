@@ -211,6 +211,8 @@ func (f *Formatter) formatPrimaryExpressionWithContext(primary *parser.PrimaryEx
 		return f.formatIdentifierExpr(primary.Identifier)
 	case primary.Function != nil:
 		return f.formatFunctionCallWithContext(primary.Function, multilineContext)
+	case primary.Subquery != nil:
+		return "(" + f.formatSelectStatement(&primary.Subquery.SelectStmt) + ")"
 	case primary.Parentheses != nil:
 		return "(" + f.formatExpressionWithContext(&primary.Parentheses.Expression, multilineContext, baseIndent) + ")"
 	case primary.Tuple != nil:
