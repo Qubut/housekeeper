@@ -38,6 +38,11 @@ func (f *Formatter) createView(w io.Writer, stmt *parser.CreateViewStmt) error {
 
 		lines = append(lines, strings.Join(headerParts, " "))
 
+		// REFRESH strategy (refreshable materialized views)
+		if stmt.Refresh != nil {
+			lines = append(lines, f.formatViewRefresh(stmt.Refresh))
+		}
+
 		// TO table (for materialized views)
 		if stmt.To != nil {
 			toClause := f.keyword("TO") + " "
@@ -55,9 +60,12 @@ func (f *Formatter) createView(w io.Writer, stmt *parser.CreateViewStmt) error {
 			lines = append(lines, f.formatViewEngine(stmt.Engine))
 		}
 
-		// POPULATE (for materialized views)
+		// POPULATE / EMPTY (for materialized views)
 		if stmt.Populate {
 			lines = append(lines, f.keyword("POPULATE"))
+		}
+		if stmt.Empty {
+			lines = append(lines, f.keyword("EMPTY"))
 		}
 
 		// AS SELECT
@@ -107,6 +115,63 @@ func (f *Formatter) dropView(w io.Writer, stmt *parser.DropViewStmt) error {
 
 		return ddl.formatBasicDDL(w, parts)
 	})
+}
+
+// formatViewRefresh formats a refreshable MV REFRESH clause, including APPEND.
+func (f *Formatter) formatViewRefresh(refresh *parser.ViewRefreshClause) string {
+	if refresh == nil {
+		return ""
+	}
+
+	parts := []string{f.keyword("REFRESH")}
+
+	if refresh.Kind != "" {
+		parts = append(parts, f.keyword(refresh.Kind))
+		if refresh.Period != nil {
+			parts = append(parts, f.formatRefreshTimeInterval(refresh.Period))
+		}
+		if refresh.Offset != nil {
+			parts = append(parts, f.keyword("OFFSET"), f.formatRefreshTimeInterval(refresh.Offset))
+		}
+	}
+
+	if refresh.RandomizeFor != nil {
+		parts = append(parts, f.keyword("RANDOMIZE FOR"), f.formatRefreshTimeInterval(refresh.RandomizeFor))
+	}
+
+	if len(refresh.DependsOn) > 0 {
+		deps := make([]string, 0, len(refresh.DependsOn))
+		for _, dep := range refresh.DependsOn {
+			deps = append(deps, f.qualifiedName(dep.Database, dep.Name))
+		}
+		parts = append(parts, f.keyword("DEPENDS ON"), strings.Join(deps, ", "))
+	}
+
+	if refresh.Settings != nil && len(refresh.Settings.Values) > 0 {
+		settings := make([]string, 0, len(refresh.Settings.Values))
+		for _, assignment := range refresh.Settings.Values {
+			settings = append(settings, f.identifier(assignment.Key)+" = "+f.formatExpression(&assignment.Value))
+		}
+		parts = append(parts, f.keyword("SETTINGS"), strings.Join(settings, ", "))
+	}
+
+	if refresh.Append {
+		parts = append(parts, f.keyword("APPEND"))
+	}
+
+	return strings.Join(parts, " ")
+}
+
+// formatRefreshTimeInterval formats `N UNIT` (+ optional further parts).
+func (f *Formatter) formatRefreshTimeInterval(interval *parser.RefreshTimeInterval) string {
+	if interval == nil || len(interval.Parts) == 0 {
+		return ""
+	}
+	pieces := make([]string, 0, len(interval.Parts)*2)
+	for _, part := range interval.Parts {
+		pieces = append(pieces, part.Value, f.keyword(part.Unit))
+	}
+	return strings.Join(pieces, " ")
 }
 
 // formatViewEngine formats a materialized view ENGINE clause with optional DDL

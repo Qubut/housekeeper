@@ -185,6 +185,27 @@ func TestFormatter_MaterializedView(t *testing.T) {
 				"GROUP BY `date`, `region`;",
 			},
 		},
+		{
+			name: "refreshable materialized view every append to",
+			sql:  "CREATE MATERIALIZED VIEW mv_refresh REFRESH EVERY 30 SECOND APPEND TO target_table AS SELECT 1 AS x;",
+			expected: []string{
+				"CREATE MATERIALIZED VIEW `mv_refresh`",
+				"REFRESH EVERY 30 SECOND APPEND",
+				"TO `target_table`",
+				"AS SELECT 1 AS `x`;",
+			},
+		},
+		{
+			name: "refreshable materialized view every to without append",
+			sql:  "CREATE MATERIALIZED VIEW analytics.mv_hourly REFRESH EVERY 1 HOUR TO analytics.hourly_snapshot AS SELECT count() AS cnt FROM events;",
+			expected: []string{
+				"CREATE MATERIALIZED VIEW `analytics`.`mv_hourly`",
+				"REFRESH EVERY 1 HOUR",
+				"TO `analytics`.`hourly_snapshot`",
+				"AS SELECT count() AS `cnt`",
+				"FROM `events`;",
+			},
+		},
 	}
 
 	for _, tt := range tests {

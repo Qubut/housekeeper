@@ -418,6 +418,11 @@ func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt, functions map[s
 	// Note: IfNotExists is ignored because it's a creation-time directive
 	// that's not preserved in ClickHouse's stored object definitions
 
+	// Compare REFRESH strategy (refreshable materialized views)
+	if !refreshClausesAreEqual(stmt1.Refresh, stmt2.Refresh) {
+		return false
+	}
+
 	// Compare TO clauses (materialized views only)
 	if getViewTableTargetValue(stmt1.To) != getViewTableTargetValue(stmt2.To) {
 		return false
@@ -434,11 +439,138 @@ func viewStatementsAreEqual(stmt1, stmt2 *parser.CreateViewStmt, functions map[s
 	_ = stmt1.Populate // Acknowledge that we're intentionally ignoring this field
 	_ = stmt2.Populate
 
+	// EMPTY is a create-time directive for refreshable MVs; treat like POPULATE
+	// for comparison (not always preserved in live definitions).
+	_ = stmt1.Empty
+	_ = stmt2.Empty
+
 	// Compare SELECT clauses with formatting tolerance
 	if !selectClausesAreEqualWithTolerance(stmt1.AsSelect, stmt2.AsSelect, functions) {
 		return false
 	}
 
+	return true
+}
+
+// refreshClausesAreEqual compares refreshable-MV REFRESH strategies.
+// Interval unit plurals are normalized (SECOND vs SECONDS) because ClickHouse
+// accepts both spellings via parseIntervalKind.
+func refreshClausesAreEqual(a, b *parser.ViewRefreshClause) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	if !strings.EqualFold(a.Kind, b.Kind) {
+		return false
+	}
+	if !refreshTimeIntervalsEqual(a.Period, b.Period) {
+		return false
+	}
+	if !refreshTimeIntervalsEqual(a.Offset, b.Offset) {
+		return false
+	}
+	if !refreshTimeIntervalsEqual(a.RandomizeFor, b.RandomizeFor) {
+		return false
+	}
+	if !refreshDependsOnEqual(a.DependsOn, b.DependsOn) {
+		return false
+	}
+	if !refreshSettingsEqual(a.Settings, b.Settings) {
+		return false
+	}
+	if a.Append != b.Append {
+		return false
+	}
+	return true
+}
+
+func refreshTimeIntervalsEqual(a, b *parser.RefreshTimeInterval) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.Parts) != len(b.Parts) {
+		return false
+	}
+	for i := range a.Parts {
+		if a.Parts[i].Value != b.Parts[i].Value {
+			return false
+		}
+		if normalizeRefreshUnit(a.Parts[i].Unit) != normalizeRefreshUnit(b.Parts[i].Unit) {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeRefreshUnit(unit string) string {
+	u := strings.ToUpper(unit)
+	switch u {
+	case "NANOSECONDS":
+		return "NANOSECOND"
+	case "MICROSECONDS":
+		return "MICROSECOND"
+	case "MILLISECONDS":
+		return "MILLISECOND"
+	case "SECONDS":
+		return "SECOND"
+	case "MINUTES":
+		return "MINUTE"
+	case "HOURS":
+		return "HOUR"
+	case "DAYS":
+		return "DAY"
+	case "WEEKS":
+		return "WEEK"
+	case "MONTHS":
+		return "MONTH"
+	case "QUARTERS":
+		return "QUARTER"
+	case "YEARS":
+		return "YEAR"
+	default:
+		return u
+	}
+}
+
+func refreshDependsOnEqual(a, b []parser.ViewRefreshDependency) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !strings.EqualFold(getStringValue(a[i].Database), getStringValue(b[i].Database)) {
+			return false
+		}
+		if !strings.EqualFold(a[i].Name, b[i].Name) {
+			return false
+		}
+	}
+	return true
+}
+
+func refreshSettingsEqual(a, b *parser.SettingsClause) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.Values) != len(b.Values) {
+		return false
+	}
+	for i := range a.Values {
+		if !strings.EqualFold(a.Values[i].Key, b.Values[i].Key) {
+			return false
+		}
+		if !expressionsAreEqual(&a.Values[i].Value, &b.Values[i].Value) {
+			return false
+		}
+	}
 	return true
 }
 
@@ -1198,6 +1330,10 @@ func generateCreateViewSQL(view *ViewInfo) string {
 		sql += " ON CLUSTER " + view.Cluster
 	}
 
+	if view.Statement.Refresh != nil {
+		sql += " " + buildRefreshClauseString(view.Statement.Refresh)
+	}
+
 	toValue := getViewTableTargetValue(view.Statement.To)
 	if toValue != "" {
 		sql += " TO " + toValue
@@ -1211,11 +1347,75 @@ func generateCreateViewSQL(view *ViewInfo) string {
 		sql += " POPULATE"
 	}
 
+	if view.Statement.Empty {
+		sql += " EMPTY"
+	}
+
 	if view.Statement.AsSelect != nil {
 		sql += " AS " + selectStatementToString(view.Statement.AsSelect)
 	}
 
 	return sql + ";"
+}
+
+// buildRefreshClauseString renders a REFRESH strategy for migration SQL.
+func buildRefreshClauseString(refresh *parser.ViewRefreshClause) string {
+	if refresh == nil {
+		return ""
+	}
+
+	parts := []string{"REFRESH"}
+
+	if refresh.Kind != "" {
+		parts = append(parts, refresh.Kind)
+		if refresh.Period != nil {
+			parts = append(parts, buildRefreshTimeIntervalString(refresh.Period))
+		}
+		if refresh.Offset != nil {
+			parts = append(parts, "OFFSET", buildRefreshTimeIntervalString(refresh.Offset))
+		}
+	}
+
+	if refresh.RandomizeFor != nil {
+		parts = append(parts, "RANDOMIZE FOR", buildRefreshTimeIntervalString(refresh.RandomizeFor))
+	}
+
+	if len(refresh.DependsOn) > 0 {
+		deps := make([]string, 0, len(refresh.DependsOn))
+		for _, dep := range refresh.DependsOn {
+			if dep.Database != nil && *dep.Database != "" {
+				deps = append(deps, *dep.Database+"."+dep.Name)
+			} else {
+				deps = append(deps, dep.Name)
+			}
+		}
+		parts = append(parts, "DEPENDS ON", strings.Join(deps, ", "))
+	}
+
+	if refresh.Settings != nil && len(refresh.Settings.Values) > 0 {
+		settings := make([]string, 0, len(refresh.Settings.Values))
+		for _, assignment := range refresh.Settings.Values {
+			settings = append(settings, assignment.Key+" = "+assignment.Value.String())
+		}
+		parts = append(parts, "SETTINGS", strings.Join(settings, ", "))
+	}
+
+	if refresh.Append {
+		parts = append(parts, "APPEND")
+	}
+
+	return strings.Join(parts, " ")
+}
+
+func buildRefreshTimeIntervalString(interval *parser.RefreshTimeInterval) string {
+	if interval == nil || len(interval.Parts) == 0 {
+		return ""
+	}
+	pieces := make([]string, 0, len(interval.Parts)*2)
+	for _, part := range interval.Parts {
+		pieces = append(pieces, part.Value, part.Unit)
+	}
+	return strings.Join(pieces, " ")
 }
 
 // generateDropViewSQL generates DROP VIEW/TABLE SQL from ViewInfo
