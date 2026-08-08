@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -40,6 +41,7 @@ type (
 	// This interface is satisfied by *client.Client and allows for easy mocking in tests.
 	DockerClient interface {
 		ImagePull(context.Context, string, image.PullOptions) (io.ReadCloser, error)
+		ImageInspect(context.Context, string, ...client.ImageInspectOption) (image.InspectResponse, error)
 		ContainerCreate(context.Context, *container.Config, *container.HostConfig, *network.NetworkingConfig, *v1.Platform, string) (container.CreateResponse, error)
 		ContainerStart(context.Context, string, container.StartOptions) error
 		ContainerList(context.Context, container.ListOptions) ([]container.Summary, error)
@@ -79,6 +81,11 @@ func newEngine(cl DockerClient) *engine {
 }
 
 func (c *engine) Pull(ctx context.Context, img string) error {
+	// Prefer an already-local image (custom builds that are not in a registry yet).
+	if _, err := c.client.ImageInspect(ctx, img); err == nil {
+		return nil
+	}
+
 	out, err := c.client.ImagePull(ctx, img, image.PullOptions{})
 	return R.ToError(F.Pipe1(
 		R.TryCatchError(out, errors.Wrapf(err, "failed to pull image: %s", img)),
