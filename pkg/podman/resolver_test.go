@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pseudomuto/housekeeper/pkg/docker"
 	"github.com/pseudomuto/housekeeper/pkg/podman"
@@ -25,6 +26,9 @@ func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID str
 }
 
 func (m *mockDockerClient) ImagePull(_ context.Context, _ string, _ image.PullOptions) (io.ReadCloser, error) {
+	panic("not implemented")
+}
+func (m *mockDockerClient) ImageInspect(_ context.Context, _ string, _ ...client.ImageInspectOption) (image.InspectResponse, error) {
 	panic("not implemented")
 }
 func (m *mockDockerClient) ContainerCreate(_ context.Context, _ *container.Config, _ *container.HostConfig, _ *network.NetworkingConfig, _ *v1.Platform, _ string) (container.CreateResponse, error) {
