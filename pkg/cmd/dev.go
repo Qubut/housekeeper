@@ -54,6 +54,7 @@ func devUp(cfg *config.Config, client docker.DockerClient) *cli.Command {
 			// Start container, run migrations, get client
 			container, client, err := runContainer(ctx, cmd.Writer, docker.DockerOptions{
 				Version:   config.version,
+				Image:     cfg.ClickHouse.Image,
 				ConfigDir: config.configDir,
 				Name:      devContainerName,
 			}, cfg, client)

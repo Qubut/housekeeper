@@ -20,6 +20,10 @@ type (
 		// This helps ensure generated DDL is compatible with the specified version
 		Version string `yaml:"version,omitempty"`
 
+		// Image overrides the ephemeral ClickHouse container image. When empty,
+		// housekeeper uses clickhouse/clickhouse-server:{version}-alpine.
+		Image string `yaml:"image,omitempty"`
+
 		// ConfigDir specifies the directory where ClickHouse configuration files are stored
 		// This directory is used for managing ClickHouse server configuration fragments
 		ConfigDir string `yaml:"config_dir,omitempty"`

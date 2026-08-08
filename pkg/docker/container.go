@@ -30,6 +30,10 @@ type (
 		// Version is the ClickHouse image tag to use (default: latest).
 		Version string
 
+		// Image is an optional full image reference. When set, it overrides
+		// the default clickhouse/clickhouse-server:{version}-alpine image.
+		Image string
+
 		// ConfigDir is an optional host path to mount as /etc/clickhouse-server/config.d.
 		// Relative paths are resolved to absolute before mounting.
 		ConfigDir string
@@ -85,6 +89,10 @@ func (c *ClickHouseContainer) Start(ctx context.Context) error {
 	}
 
 	version := O.MonadGetOrElse(O.FromNonZero[string]()(c.options.Version), F.Constant("latest"))
+	image := O.MonadGetOrElse(
+		O.FromNonZero[string]()(c.options.Image),
+		F.Constant(fmt.Sprintf("clickhouse/clickhouse-server:%s-alpine", version)),
+	)
 
 	containerName := c.containerName()
 
@@ -94,7 +102,7 @@ func (c *ClickHouseContainer) Start(ctx context.Context) error {
 
 	containerOpts := ContainerOptions{
 		Name:  containerName,
-		Image: fmt.Sprintf("clickhouse/clickhouse-server:%s-alpine", version),
+		Image: image,
 		Env: map[string]string{
 			"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "1",
 			// Empty password + explicit user keeps passwordless default, but enables
