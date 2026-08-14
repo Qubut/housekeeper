@@ -78,6 +78,16 @@ func (c *ClickHouseContainer) containerName() string {
 	return O.MonadGetOrElse(O.FromNonZero[string]()(c.options.Name), F.Constant("housekeeper-dev"))
 }
 
+// clickhouseServerImage is the ephemeral container image for diff/dev.
+// DockerOptions.Image wins when set; otherwise clickhouse/clickhouse-server:{version}-alpine.
+func clickhouseServerImage(opts DockerOptions) string {
+	version := O.MonadGetOrElse(O.FromNonZero[string]()(opts.Version), F.Constant("latest"))
+	return O.MonadGetOrElse(
+		O.FromNonZero[string]()(opts.Image),
+		F.Constant(fmt.Sprintf("clickhouse/clickhouse-server:%s-alpine", version)),
+	)
+}
+
 // Start pulls the image, cleans up any stale container with the same name, then starts a
 // fresh container and waits for ClickHouse HTTP readiness (SELECT 1).
 //
@@ -88,11 +98,7 @@ func (c *ClickHouseContainer) Start(ctx context.Context) error {
 		return errors.New("container is already running")
 	}
 
-	version := O.MonadGetOrElse(O.FromNonZero[string]()(c.options.Version), F.Constant("latest"))
-	image := O.MonadGetOrElse(
-		O.FromNonZero[string]()(c.options.Image),
-		F.Constant(fmt.Sprintf("clickhouse/clickhouse-server:%s-alpine", version)),
-	)
+	image := clickhouseServerImage(c.options)
 
 	containerName := c.containerName()
 
