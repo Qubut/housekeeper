@@ -114,6 +114,21 @@ dir: migrations
 		require.Equal(t, "custom/config", config.ClickHouse.ConfigDir)
 		require.Equal(t, "production", config.ClickHouse.Cluster)
 		require.Equal(t, []string{"testing_db", "temp_db"}, config.ClickHouse.IgnoreDatabases)
+		require.Empty(t, config.ClickHouse.Image)
+	})
+
+	t.Run("parses optional clickhouse.image", func(t *testing.T) {
+		yamlData := `
+clickhouse:
+  version: "26.1.3.52"
+  image: "localhost/clickhouse-server-udf:26.1.3.52"
+entrypoint: test.sql
+dir: migrations
+`
+		config, err := LoadConfig(strings.NewReader(yamlData))
+		require.NoError(t, err)
+		require.Equal(t, "26.1.3.52", config.ClickHouse.Version)
+		require.Equal(t, "localhost/clickhouse-server-udf:26.1.3.52", config.ClickHouse.Image)
 	})
 
 	t.Run("sets default values when empty", func(t *testing.T) {
