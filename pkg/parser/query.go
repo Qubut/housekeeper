@@ -44,17 +44,33 @@ type (
 		Semicolon bool `parser:"';'"`
 	}
 
-	// WithClause represents WITH clause for CTEs
+	// WithClause represents a WITH clause: named CTEs and/or expression aliases.
 	WithClause struct {
 		With string                  `parser:"'WITH'"`
 		CTEs []CommonTableExpression `parser:"@@ (',' @@)*"`
 	}
 
-	// CommonTableExpression represents a single CTE
+	// CommonTableExpression is one WITH binding.
+	// Named CTE form (`name AS (SELECT ...)`) is tried before expression-alias
+	// form (`expr AS name`) so identifiers are not consumed as bare expressions.
 	CommonTableExpression struct {
+		Named *NamedCommonTableExpression `parser:"@@"`
+		Expr  *WithExpressionAlias        `parser:"| @@"`
+	}
+
+	// NamedCommonTableExpression is `identifier AS (subquery)`.
+	NamedCommonTableExpression struct {
 		Name  string           `parser:"@(Ident | BacktickIdent)"`
 		As    string           `parser:"'AS'"`
 		Query *SelectStatement `parser:"'(' @@ ')'"`
+	}
+
+	// WithExpressionAlias is ClickHouse `expression AS identifier`
+	// (including scalar subqueries used as LIMIT bounds).
+	WithExpressionAlias struct {
+		Expression *Expression `parser:"@@"`
+		As         string      `parser:"'AS'"`
+		Name       string      `parser:"@(Ident | BacktickIdent)"`
 	}
 
 	// SelectColumn represents a column in SELECT clause

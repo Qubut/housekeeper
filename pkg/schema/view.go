@@ -912,15 +912,30 @@ func unionClausesAreEqual(u1, u2 []parser.UnionClause) bool {
 	return true
 }
 
-// withClausesAreEqual compares WITH clauses (CTEs)
+// withClausesAreEqual compares WITH clauses (named CTEs and expression aliases).
 func withClausesAreEqual(with1, with2 *parser.WithClause) bool {
 	if eq, done := compare.NilCheck(with1, with2); !done {
 		return eq
 	}
-	return compare.Slices(with1.CTEs, with2.CTEs, func(a, b parser.CommonTableExpression) bool {
-		return normalizeIdentifier(a.Name) == normalizeIdentifier(b.Name) &&
-			selectStatementsAreEqualAST(a.Query, b.Query)
-	})
+	return compare.Slices(with1.CTEs, with2.CTEs, commonTableExpressionsAreEqual)
+}
+
+func commonTableExpressionsAreEqual(a, b parser.CommonTableExpression) bool {
+	if (a.Named == nil) != (b.Named == nil) {
+		return false
+	}
+	if a.Named != nil {
+		return normalizeIdentifier(a.Named.Name) == normalizeIdentifier(b.Named.Name) &&
+			selectStatementsAreEqualAST(a.Named.Query, b.Named.Query)
+	}
+	if (a.Expr == nil) != (b.Expr == nil) {
+		return false
+	}
+	if a.Expr == nil {
+		return true
+	}
+	return normalizeIdentifier(a.Expr.Name) == normalizeIdentifier(b.Expr.Name) &&
+		expressionsAreEqual(a.Expr.Expression, b.Expr.Expression)
 }
 
 // whereClausesAreEqual compares WHERE clauses

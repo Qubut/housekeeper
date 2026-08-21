@@ -165,6 +165,17 @@ func TestFormatter_selectStatement(t *testing.T) {
 				"ORDER BY `week`;",
 			},
 		},
+		{
+			name: "select with expression alias",
+			sql:  "WITH (SELECT n_max FROM batch_caps) AS cap SELECT * FROM candidates LIMIT cap;",
+			expected: []string{
+				"WITH",
+				"    (SELECT `n_max` FROM `batch_caps`) AS `cap`",
+				"SELECT *",
+				"FROM `candidates`",
+				"LIMIT `cap`;",
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -57,7 +57,16 @@ func rewriteSelect(stmt *parser.SelectStatement, functions map[string]*FunctionI
 		with := *stmt.With
 		ctes := make([]parser.CommonTableExpression, len(stmt.With.CTEs))
 		for i, cte := range stmt.With.CTEs {
-			cte.Query = rewriteSelect(cte.Query, functions, depth)
+			if cte.Named != nil {
+				named := *cte.Named
+				named.Query = rewriteSelect(cte.Named.Query, functions, depth)
+				cte.Named = &named
+			}
+			if cte.Expr != nil && cte.Expr.Expression != nil {
+				exprAlias := *cte.Expr
+				exprAlias.Expression = rewriteExpr(cte.Expr.Expression, nil, functions, depth)
+				cte.Expr = &exprAlias
+			}
 			ctes[i] = cte
 		}
 		with.CTEs = ctes
