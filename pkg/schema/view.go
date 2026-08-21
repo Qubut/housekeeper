@@ -881,6 +881,9 @@ func unionClausesAreEqual(u1, u2 []parser.UnionClause) bool {
 		if normalizeIdent(a.Mode) != normalizeIdent(b.Mode) {
 			return false
 		}
+		if !withClausesAreEqual(a.With, b.With) {
+			return false
+		}
 		if a.Distinct != b.Distinct {
 			return false
 		}

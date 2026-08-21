@@ -4,9 +4,9 @@ package parser
 
 type (
 	// SelectStatement represents a SELECT statement (for subqueries, no semicolon).
-	// Optional Unions holds trailing UNION [ALL|DISTINCT] SELECT arms (ClickHouse
-	// set-ops). WITH applies only to the first arm; each UnionClause is its own
-	// SELECT ... FROM ... chain.
+	// Optional Unions holds trailing UNION [ALL|DISTINCT] arms. ClickHouse may
+	// attach a WITH clause to the first arm and/or to each UNION arm when
+	// dumping create_table_query (expression aliases repeated per arm).
 	SelectStatement struct {
 		With     *WithClause          `parser:"@@?"`
 		Select   string               `parser:"'SELECT'"`
@@ -22,10 +22,12 @@ type (
 		Unions   []UnionClause        `parser:"@@*"`
 	}
 
-	// UnionClause is one UNION [ALL|DISTINCT] SELECT arm after the first select.
+	// UnionClause is one UNION [ALL|DISTINCT] arm after the first select.
 	// Mode is "ALL", "DISTINCT", or nil (bare UNION; ClickHouse uses union_default_mode).
+	// Optional With covers ClickHouse dumps that repeat WITH on each arm.
 	UnionClause struct {
 		Mode     *string              `parser:"'UNION' @('ALL' | 'DISTINCT')?"`
+		With     *WithClause          `parser:"@@?"`
 		Select   string               `parser:"'SELECT'"`
 		Distinct bool                 `parser:"@'DISTINCT'?"`
 		Columns  []SelectColumn       `parser:"@@ (',' @@)*"`

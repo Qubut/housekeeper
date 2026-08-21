@@ -99,12 +99,15 @@ func (f *Formatter) formatUnionClause(u *parser.UnionClause) []string {
 		unionLine += " " + f.keyword(*u.Mode)
 	}
 
+	lines := []string{unionLine}
+	if u.With != nil {
+		lines = append(lines, f.formatWithClause(u.With))
+	}
+
 	selectLine := f.keyword("SELECT")
 	if u.Distinct {
 		selectLine += " " + f.keyword("DISTINCT")
 	}
-
-	lines := []string{unionLine}
 	lines = f.appendSelectColumns(lines, selectLine, u.Columns)
 
 	if u.From != nil {

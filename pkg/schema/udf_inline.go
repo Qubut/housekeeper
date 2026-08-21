@@ -140,9 +140,10 @@ func rewriteSelect(stmt *parser.SelectStatement, functions map[string]*FunctionI
 }
 
 // rewriteUnion expands UDF calls inside one UNION arm by reusing rewriteSelect
-// on a temporary SelectStatement (no nested Unions / WITH on the arm).
+// on a temporary SelectStatement (no nested Unions on the arm).
 func rewriteUnion(u parser.UnionClause, functions map[string]*FunctionInfo, depth int) parser.UnionClause {
 	arm := &parser.SelectStatement{
+		With:     u.With,
 		Select:   u.Select,
 		Distinct: u.Distinct,
 		Columns:  u.Columns,
@@ -155,6 +156,7 @@ func rewriteUnion(u parser.UnionClause, functions map[string]*FunctionInfo, dept
 		Settings: u.Settings,
 	}
 	rewritten := rewriteSelect(arm, functions, depth)
+	u.With = rewritten.With
 	u.Columns = rewritten.Columns
 	u.From = rewritten.From
 	u.Where = rewritten.Where

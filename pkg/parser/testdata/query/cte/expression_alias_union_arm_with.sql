@@ -1,7 +1,4 @@
-CREATE MATERIALIZED VIEW IF NOT EXISTS `mv_emit_items`
-REFRESH EVERY 15 SECOND APPEND
-TO `sink_items`
-AS WITH
+WITH
     (SELECT `n_floor` FROM `slot_mix` WHERE `market` = 'items') AS `items_n_floor`,
     (SELECT `n_value` FROM `slot_mix` WHERE `market` = 'items') AS `items_n_value`
 SELECT *
