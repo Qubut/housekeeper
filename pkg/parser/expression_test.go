@@ -30,10 +30,15 @@ func TestExpressionParsing(t *testing.T) {
 	}{
 		// Literals
 		{"number", "42", true},
+		{"float trailing dot", "2.", true},
+		{"scientific notation", "1e-9", true},
+		{"scientific positive exp", "1.5e10", true},
 		{"string", "'hello'", true},
 		{"boolean true", "TRUE", true},
 		{"boolean false", "FALSE", true},
 		{"null", "NULL", true},
+		{"greatest with scientific", "greatest(1e-9, least(0.999999999, 0.5))", true},
+		{"pow trailing float", "pow(2., 64)", true},
 
 		// Identifiers
 		{"simple identifier", "column_name", true},

@@ -156,6 +156,10 @@ func TestSelectCTE(t *testing.T) {
 	tests := []statementTest{
 		{name: "single", sql: `WITH active_users AS (SELECT * FROM users WHERE active = 1) SELECT * FROM active_users;`},
 		{name: "multiple", sql: `WITH active_users AS (SELECT * FROM users WHERE active = 1), recent_orders AS (SELECT * FROM orders WHERE date > '2023-01-01') SELECT * FROM active_users JOIN recent_orders ON active_users.id = recent_orders.user_id;`},
+		{name: "expression_alias_subquery", sql: `WITH (SELECT sum(n) FROM numbers(10)) AS total SELECT total;`},
+		{name: "expression_alias_limit", sql: `WITH (SELECT n_floor FROM slot_mix WHERE market = 'items') AS items_n_floor, (SELECT n_value FROM slot_mix WHERE market = 'items') AS items_n_value SELECT * FROM (SELECT id FROM candidates WHERE due = 1 ORDER BY score DESC LIMIT items_n_floor) UNION ALL SELECT * FROM (SELECT id FROM candidates WHERE due = 1 ORDER BY score DESC LIMIT items_n_value);`},
+		{name: "expression_alias_union_arm_with", sql: `WITH (SELECT n_floor FROM slot_mix WHERE market = 'items') AS items_n_floor, (SELECT n_value FROM slot_mix WHERE market = 'items') AS items_n_value SELECT * FROM (SELECT id FROM candidates WHERE due = 1 ORDER BY score DESC LIMIT items_n_floor) UNION ALL WITH (SELECT n_floor FROM slot_mix WHERE market = 'items') AS items_n_floor, (SELECT n_value FROM slot_mix WHERE market = 'items') AS items_n_value SELECT * FROM (SELECT id FROM candidates WHERE due = 1 ORDER BY score DESC LIMIT items_n_value);`},
+		{name: "mixed_named_and_expression", sql: `WITH batch_caps AS (SELECT n_floor, n_value FROM slot_mix WHERE market = 'items'), (SELECT n_floor FROM batch_caps) AS items_n_floor SELECT * FROM candidates LIMIT items_n_floor;`},
 	}
 
 	runStatementTests(t, "query/cte", tests)

@@ -17,7 +17,7 @@ var (
 		{Name: "MultilineComment", Pattern: `/\*[^*]*\*+([^/*][^*]*\*+)*/`},
 		{Name: "String", Pattern: `'([^'\\]|\\.)*'`},
 		{Name: "BacktickIdent", Pattern: "`([^`\\\\]|\\\\.)*`"},
-		{Name: "Number", Pattern: `\d+(\.\d*)?`},
+		{Name: "Number", Pattern: `\d+(\.\d*)?([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?`},
 		{Name: "Ident", Pattern: `[a-zA-Z_][a-zA-Z0-9_]*`},
 		{Name: "Arrow", Pattern: `->`},
 		{Name: "NotEq", Pattern: `!=|<>`},

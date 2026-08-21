@@ -99,12 +99,15 @@ func (f *Formatter) formatUnionClause(u *parser.UnionClause) []string {
 		unionLine += " " + f.keyword(*u.Mode)
 	}
 
+	lines := []string{unionLine}
+	if u.With != nil {
+		lines = append(lines, f.formatWithClause(u.With))
+	}
+
 	selectLine := f.keyword("SELECT")
 	if u.Distinct {
 		selectLine += " " + f.keyword("DISTINCT")
 	}
-
-	lines := []string{unionLine}
 	lines = f.appendSelectColumns(lines, selectLine, u.Columns)
 
 	if u.From != nil {
@@ -131,7 +134,7 @@ func (f *Formatter) formatUnionClause(u *parser.UnionClause) []string {
 	return lines
 }
 
-// formatWithClause formats WITH clause for CTEs
+// formatWithClause formats WITH clause bindings (named CTEs and expression aliases).
 func (f *Formatter) formatWithClause(with *parser.WithClause) string {
 	if with == nil || len(with.CTEs) == 0 {
 		return ""
@@ -140,26 +143,28 @@ func (f *Formatter) formatWithClause(with *parser.WithClause) string {
 	lines := make([]string, 0, len(with.CTEs)*6+1) // Approximate capacity
 	lines = append(lines, f.keyword("WITH"))
 	for i, cte := range with.CTEs {
-		// Start the CTE definition
-		cteHeader := "    " + f.identifier(cte.Name) + " " + f.keyword("AS") + " ("
-		lines = append(lines, cteHeader)
-
-		// Format the SELECT statement with additional indentation
-		selectContent := f.formatSelectStatement(cte.Query)
-		selectLines := strings.SplitSeq(selectContent, "\n")
-		for line := range selectLines {
-			if line != "" {
-				lines = append(lines, "        "+line) // Extra 4 spaces for CTE content
-			}
+		comma := ""
+		if i != len(with.CTEs)-1 {
+			comma = ","
 		}
 
-		// Closing parenthesis on its own line
-		if i == len(with.CTEs)-1 {
-			// Last CTE - no comma
-			lines = append(lines, "    )")
-		} else {
-			// Not last CTE - add comma
-			lines = append(lines, "    ),")
+		switch {
+		case cte.Named != nil:
+			cteHeader := "    " + f.identifier(cte.Named.Name) + " " + f.keyword("AS") + " ("
+			lines = append(lines, cteHeader)
+
+			selectContent := f.formatSelectStatement(cte.Named.Query)
+			selectLines := strings.SplitSeq(selectContent, "\n")
+			for line := range selectLines {
+				if line != "" {
+					lines = append(lines, "        "+line)
+				}
+			}
+			lines = append(lines, "    )"+comma)
+		case cte.Expr != nil:
+			// Scalar WITH aliases (including LIMIT bounds) stay on one line.
+			expr := strings.Join(strings.Fields(f.formatExpression(cte.Expr.Expression)), " ")
+			lines = append(lines, "    "+expr+" "+f.keyword("AS")+" "+f.identifier(cte.Expr.Name)+comma)
 		}
 	}
 

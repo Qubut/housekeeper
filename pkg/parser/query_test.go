@@ -82,6 +82,8 @@ func TestSelectParsing(t *testing.T) {
 		// WITH (CTE) clause - ✅ Now working!
 		{"with cte", "WITH active_users AS (SELECT * FROM users WHERE active = 1) SELECT * FROM active_users", true},
 		{"with multiple ctes", "WITH active_users AS (SELECT * FROM users WHERE active = 1), recent_orders AS (SELECT * FROM orders WHERE date > '2023-01-01') SELECT * FROM active_users JOIN recent_orders ON active_users.id = recent_orders.user_id", true},
+		{"with expression alias subquery", "WITH (SELECT sum(n) FROM numbers(10)) AS total SELECT total", true},
+		{"with expression alias limit", "WITH (SELECT n_max FROM batch_caps) AS cap SELECT * FROM candidates LIMIT cap", true},
 
 		// SETTINGS clause - ✅ Now working!
 		{"with settings", "SELECT * FROM users SETTINGS max_threads = 4", true},
