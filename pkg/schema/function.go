@@ -137,14 +137,15 @@ func compareFunctions(current, target *parser.SQL) []*FunctionDiff {
 			}
 			diffs = append(diffs, diff)
 		} else if !functionsEqual(currentFn, targetFn) {
-			// Function exists but is different - needs replacement
+			// ClickHouse has no ALTER/CREATE OR REPLACE FUNCTION, so a body
+			// change must drop the existing object before creating the new one.
 			diff := &FunctionDiff{
 				DiffBase: DiffBase{
 					Type:        string(FunctionDiffReplace),
 					Name:        name,
 					Description: "Replace function " + name,
-					UpSQL:       generateCreateFunctionSQL(targetFn),
-					DownSQL:     generateCreateFunctionSQL(currentFn),
+					UpSQL:       generateDropFunctionSQL(currentFn) + "\n\n" + generateCreateFunctionSQL(targetFn),
+					DownSQL:     generateDropFunctionSQL(targetFn) + "\n\n" + generateCreateFunctionSQL(currentFn),
 				},
 				Current: currentFn,
 				Target:  targetFn,

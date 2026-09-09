@@ -2,6 +2,7 @@ package schema
 
 import (
 	"iter"
+	"math/big"
 	"strings"
 
 	A "github.com/IBM/fp-go/v2/array"
@@ -351,7 +352,7 @@ func canonicalPrimaryKey(p *parser.PrimaryExpression) string {
 // this fold every view whose source SQL writes `INTERVAL n UNIT` compares as
 // permanently different from its own live definition.
 func canonicalIntervalKey(iv *parser.IntervalExpr) string {
-	return "(FUNC tointerval" + strings.ToLower(iv.Unit) + " (NUM " + iv.Value + "))"
+	return "(FUNC tointerval" + strings.ToLower(iv.Unit) + " (NUM " + canonicalNumberKey(iv.Value) + "))"
 }
 
 func canonicalExprListSuffix(exprs []parser.Expression) string {
@@ -368,7 +369,7 @@ func canonicalLiteralKey(l *parser.Literal) string {
 	case l.StringValue != nil:
 		return "(STR " + *l.StringValue + ")"
 	case l.Number != nil:
-		return "(NUM " + *l.Number + ")"
+		return "(NUM " + canonicalNumberKey(*l.Number) + ")"
 	case l.Boolean != nil:
 		return "(BOOL " + strings.ToUpper(*l.Boolean) + ")"
 	case l.Null:
@@ -376,6 +377,23 @@ func canonicalLiteralKey(l *parser.Literal) string {
 	default:
 		return "()"
 	}
+}
+
+// canonicalNumberKey maps decimal and scientific spellings of the same value
+// onto one rational key. ClickHouse create_query rewrites 0.000000001 to 1e-9
+// and 0.20 to 0.2; leaving the raw token in the comparison key made every
+// later diff re-emit an unchanged SQL function.
+func canonicalNumberKey(raw string) string {
+	token := strings.TrimSpace(raw)
+	f, _, err := big.ParseFloat(token, 10, 256, big.ToNearestEven)
+	if err != nil {
+		return token
+	}
+	r, _ := f.Rat(nil)
+	if r == nil {
+		return token
+	}
+	return r.RatString()
 }
 
 // canonicalIdentifierKey lowercases the column name: ClickHouse identifiers
