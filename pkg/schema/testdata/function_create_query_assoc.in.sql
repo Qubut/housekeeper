@@ -1,0 +1,4 @@
+-- Current state: ClickHouse create_query parenthesization and scientific floats
+CREATE FUNCTION beta_sample AS (hits, misses, u1, u2) -> if((hits + misses) <= 0., u1, greatest(1e-9, least(0.999999999, ((1. + hits) / ((2. + hits) + misses)) + ((sqrt(((1. + hits) * (1. + misses)) / ((((2. + hits) + misses) * ((2. + hits) + misses)) * ((3. + hits) + misses))) * sqrt(-2. * log(greatest(u1, 1e-9)))) * cos((2. * pi()) * u2)))));
+-- Target state: source spelling of the same expression
+CREATE FUNCTION beta_sample AS (hits, misses, u1, u2) -> if((hits + misses) <= 0., u1, greatest(0.000000001, least(0.999999999, ((1. + hits) / (2. + hits + misses)) + (sqrt(((1. + hits) * (1. + misses)) / ((2. + hits + misses) * (2. + hits + misses) * (3. + hits + misses))) * sqrt(-2. * log(greatest(u1, 0.000000001))) * cos(2. * pi() * u2)))));

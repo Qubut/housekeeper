@@ -120,3 +120,20 @@ func TestGetViewTableTargetValue_DefaultDB(t *testing.T) {
 		})
 	}
 }
+
+func TestCanonicalNumberKey(t *testing.T) {
+	cases := []struct {
+		left, right string
+	}{
+		{"0.000000001", "1e-9"},
+		{"0.20", "0.2"},
+		{"1.", "1"},
+		{"0.", "0"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.left+"="+tc.right, func(t *testing.T) {
+			require.Equal(t, canonicalNumberKey(tc.left), canonicalNumberKey(tc.right))
+		})
+	}
+	require.NotEqual(t, canonicalNumberKey("2"), canonicalNumberKey("3"))
+}
