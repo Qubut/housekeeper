@@ -622,12 +622,10 @@ func buildEngineString(engine *parser.ViewEngine) string {
 		result += "()"
 	}
 
-	// Add ORDER BY if present (proper format with spaces)
 	if engine.OrderBy != nil {
 		result += " ORDER BY " + engine.OrderBy.Expression.String()
 	}
 
-	// Add PARTITION BY if present (proper format with spaces)
 	if engine.PartitionBy != nil {
 		result += " PARTITION BY " + engine.PartitionBy.Expression.String()
 	}
@@ -753,7 +751,7 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 	if (stmt1.With == nil) != (stmt2.With == nil) {
 		return false
 	}
-	if len(stmt1.Columns) != len(stmt2.Columns) {
+	if !isLoneStarSelect(stmt1.Columns) && !isLoneStarSelect(stmt2.Columns) && len(stmt1.Columns) != len(stmt2.Columns) {
 		return false
 	}
 	if (stmt1.From == nil) != (stmt2.From == nil) {
@@ -781,16 +779,18 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 		return false
 	}
 
-	for i := range stmt1.Columns {
-		c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
-		if (c1.Star != nil) != (c2.Star != nil) {
-			return false
-		}
-		if normalizeSelectExpr(c1.Expression) != normalizeSelectExpr(c2.Expression) {
-			return false
-		}
-		if normalizeIdent(c1.Alias) != normalizeIdent(c2.Alias) {
-			return false
+	if !isLoneStarSelect(stmt1.Columns) && !isLoneStarSelect(stmt2.Columns) {
+		for i := range stmt1.Columns {
+			c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
+			if (c1.Star != nil) != (c2.Star != nil) {
+				return false
+			}
+			if normalizeSelectExpr(c1.Expression) != normalizeSelectExpr(c2.Expression) {
+				return false
+			}
+			if normalizeIdent(c1.Alias) != normalizeIdent(c2.Alias) {
+				return false
+			}
 		}
 	}
 
@@ -1018,8 +1018,17 @@ func orderByColumnsAreEqual(col1, col2 *parser.OrderByColumn) bool {
 	return dir1 == dir2 && nulls1 == nulls2
 }
 
-// selectColumnsAreEqual compares SELECT column lists
+func isLoneStarSelect(cols []parser.SelectColumn) bool {
+	return len(cols) == 1 && cols[0].Star != nil
+}
+
+// selectColumnsAreEqual compares SELECT column lists.
+// A lone `*` on either side matches any projection: ClickHouse
+// create_table_query expands `SELECT *` to the view's stored columns.
 func selectColumnsAreEqual(cols1, cols2 []parser.SelectColumn) bool {
+	if isLoneStarSelect(cols1) || isLoneStarSelect(cols2) {
+		return true
+	}
 	if len(cols1) != len(cols2) {
 		return false
 	}
