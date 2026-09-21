@@ -59,6 +59,19 @@ func TestStripDumpedViewHeaderDoesNotEatEngineArgs(t *testing.T) {
 	require.Contains(t, got, "ORDER BY (hour, event_type)")
 }
 
+func TestStripDumpedViewHeaderRemovesColumnsAfterToRefreshAppend(t *testing.T) {
+	dumped := `CREATE MATERIALIZED VIEW default.mv_hourly REFRESH EVERY 6 HOUR APPEND TO default.hourly_snapshot (` + "`name`" + ` String, ` + "`id`" + ` UInt64) AS SELECT name, id FROM events;`
+
+	got := stripDumpedViewHeader(dumped)
+	require.NotContains(t, got, "`name` String")
+	require.Contains(t, got, "REFRESH EVERY 6 HOUR APPEND")
+	require.Contains(t, got, "TO default.hourly_snapshot")
+	require.Contains(t, got, "AS SELECT")
+
+	_, err := parser.ParseString(got)
+	require.NoError(t, err)
+}
+
 func TestStripDumpedViewHeaderRemovesColumnsAfterTo(t *testing.T) {
 	dumped := `CREATE MATERIALIZED VIEW default.mv_hourly TO default.hourly_snapshot (` + "`hour`" + ` DateTime, ` + "`cnt`" + ` UInt64) AS SELECT toStartOfHour(ts) AS hour, count() AS cnt FROM events GROUP BY hour;`
 
