@@ -139,9 +139,23 @@ func (f *Formatter) formatInExpression(in *parser.InExpression) string {
 	if in == nil {
 		return ""
 	}
-	// This would need to be implemented based on the InExpression structure
-	// For now, fall back to String()
-	return in.String()
+	if len(in.List) > 0 {
+		parts := make([]string, len(in.List))
+		for i := range in.List {
+			parts[i] = f.formatExpression(&in.List[i])
+		}
+		return "(" + strings.Join(parts, ", ") + ")"
+	}
+	if in.Array != nil {
+		return f.formatArrayExpression(in.Array)
+	}
+	if in.Subquery != nil {
+		return "(" + f.formatSelectStatement(&in.Subquery.SelectStmt) + ")"
+	}
+	if in.Expr != nil {
+		return f.formatExpression(in.Expr)
+	}
+	return "()"
 }
 
 // formatBetweenExpression formats a BETWEEN expression
