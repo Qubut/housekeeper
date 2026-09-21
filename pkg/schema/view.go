@@ -759,6 +759,9 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 	if (stmt1.From == nil) != (stmt2.From == nil) {
 		return false
 	}
+	if (stmt1.Prewhere == nil) != (stmt2.Prewhere == nil) {
+		return false
+	}
 	if (stmt1.Where == nil) != (stmt2.Where == nil) {
 		return false
 	}
@@ -793,6 +796,11 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 
 	if !fromClausesAreEqual(stmt1.From, stmt2.From) {
 		return false
+	}
+	if stmt1.Prewhere != nil && stmt2.Prewhere != nil {
+		if normalizeSelectExpr(&stmt1.Prewhere.Condition) != normalizeSelectExpr(&stmt2.Prewhere.Condition) {
+			return false
+		}
 	}
 	if stmt1.Where != nil && stmt2.Where != nil {
 		if normalizeSelectExpr(&stmt1.Where.Condition) != normalizeSelectExpr(&stmt2.Where.Condition) {
@@ -832,6 +840,10 @@ func selectStatementsAreEqualAST(stmt1, stmt2 *parser.SelectStatement) bool {
 
 	// Compare FROM clauses
 	if !fromClausesAreEqual(stmt1.From, stmt2.From) {
+		return false
+	}
+
+	if !prewhereClausesAreEqual(stmt1.Prewhere, stmt2.Prewhere) {
 		return false
 	}
 
@@ -893,6 +905,9 @@ func unionClausesAreEqual(u1, u2 []parser.UnionClause) bool {
 		if !fromClausesAreEqual(a.From, b.From) {
 			return false
 		}
+		if !prewhereClausesAreEqual(a.Prewhere, b.Prewhere) {
+			return false
+		}
 		if !whereClausesAreEqual(a.Where, b.Where) {
 			return false
 		}
@@ -939,6 +954,13 @@ func commonTableExpressionsAreEqual(a, b parser.CommonTableExpression) bool {
 	}
 	return normalizeIdentifier(a.Expr.Name) == normalizeIdentifier(b.Expr.Name) &&
 		expressionsAreEqual(a.Expr.Expression, b.Expr.Expression)
+}
+
+func prewhereClausesAreEqual(prewhere1, prewhere2 *parser.PrewhereClause) bool {
+	if eq, done := compare.NilCheck(prewhere1, prewhere2); !done {
+		return eq
+	}
+	return expressionsAreEqual(&prewhere1.Condition, &prewhere2.Condition)
 }
 
 // whereClausesAreEqual compares WHERE clauses

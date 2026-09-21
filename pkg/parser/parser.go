@@ -68,7 +68,7 @@ func normalizeImplicitAliases(sql string) string {
 	// Process patterns carefully, checking each match individually
 
 	// Pattern 1: FROM tablename alias WHERE/GROUP/ORDER/etc
-	keywords := []string{"WHERE", "LEFT", "RIGHT", "INNER", "JOIN", "GROUP", "ORDER", "LIMIT", "HAVING", "SETTINGS"}
+	keywords := []string{"PREWHERE", "WHERE", "LEFT", "RIGHT", "INNER", "JOIN", "GROUP", "ORDER", "LIMIT", "HAVING", "SETTINGS"}
 
 	for _, keyword := range keywords {
 		// Only process if the match doesn't already contain AS
