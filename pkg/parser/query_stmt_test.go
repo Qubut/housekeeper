@@ -40,6 +40,8 @@ func TestSelectWhere(t *testing.T) {
 	t.Parallel()
 
 	tests := []statementTest{
+		{name: "prewhere", sql: `SELECT id FROM events PREWHERE kind = 'sale';`},
+		{name: "prewhere_and_where", sql: `SELECT id FROM events PREWHERE kind IN ('sale', 'listing') WHERE ts > now() - INTERVAL 1 DAY;`},
 		{name: "equals", sql: `SELECT * FROM users WHERE active = 1;`},
 		{name: "and", sql: `SELECT * FROM users WHERE active = 1 AND age > 18;`},
 		{name: "in", sql: `SELECT * FROM users WHERE id IN (1, 2, 3);`},

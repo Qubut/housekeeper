@@ -84,6 +84,12 @@ func rewriteSelect(stmt *parser.SelectStatement, functions map[string]*FunctionI
 
 	out.From = rewriteFrom(stmt.From, functions, depth)
 
+	if stmt.Prewhere != nil {
+		pw := *stmt.Prewhere
+		pw.Condition = *rewriteExpr(&stmt.Prewhere.Condition, nil, functions, depth)
+		out.Prewhere = &pw
+	}
+
 	if stmt.Where != nil {
 		w := *stmt.Where
 		w.Condition = *rewriteExpr(&stmt.Where.Condition, nil, functions, depth)
@@ -148,6 +154,7 @@ func rewriteUnion(u parser.UnionClause, functions map[string]*FunctionInfo, dept
 		Distinct: u.Distinct,
 		Columns:  u.Columns,
 		From:     u.From,
+		Prewhere: u.Prewhere,
 		Where:    u.Where,
 		GroupBy:  u.GroupBy,
 		Having:   u.Having,
@@ -159,6 +166,7 @@ func rewriteUnion(u parser.UnionClause, functions map[string]*FunctionInfo, dept
 	u.With = rewritten.With
 	u.Columns = rewritten.Columns
 	u.From = rewritten.From
+	u.Prewhere = rewritten.Prewhere
 	u.Where = rewritten.Where
 	u.GroupBy = rewritten.GroupBy
 	u.Having = rewritten.Having

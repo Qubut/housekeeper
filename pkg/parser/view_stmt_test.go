@@ -8,6 +8,7 @@ func TestCreateView(t *testing.T) {
 	tests := []statementTest{
 		{name: "basic", sql: `CREATE VIEW db.daily_summary AS SELECT date, count(*) AS total FROM events GROUP BY date;`},
 		{name: "if_not_exists", sql: `CREATE VIEW IF NOT EXISTS users_view AS SELECT id, name FROM users WHERE active = 1;`},
+		{name: "prewhere_and_where", sql: `CREATE VIEW events_recent AS SELECT id FROM events PREWHERE kind = 'sale' WHERE ts > now() - INTERVAL 1 DAY;`},
 		{name: "on_cluster", sql: `CREATE VIEW stats_view ON CLUSTER production AS SELECT * FROM statistics;`},
 		{name: "on_cluster_macro", sql: `CREATE VIEW v ON CLUSTER '{cluster}' AS SELECT 1;`},
 		{name: "or_replace", sql: `CREATE OR REPLACE VIEW db.updated_view AS SELECT id, name, updated_at FROM users ORDER BY updated_at DESC;`},

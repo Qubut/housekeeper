@@ -13,6 +13,7 @@ type (
 		Distinct bool                 `parser:"@'DISTINCT'?"`
 		Columns  []SelectColumn       `parser:"@@ (',' @@)*"`
 		From     *FromClause          `parser:"@@?"`
+		Prewhere *PrewhereClause      `parser:"@@?"`
 		Where    *WhereClause         `parser:"@@?"`
 		GroupBy  *GroupByClause       `parser:"@@?"`
 		Having   *HavingClause        `parser:"@@?"`
@@ -32,6 +33,7 @@ type (
 		Distinct bool                 `parser:"@'DISTINCT'?"`
 		Columns  []SelectColumn       `parser:"@@ (',' @@)*"`
 		From     *FromClause          `parser:"@@?"`
+		Prewhere *PrewhereClause      `parser:"@@?"`
 		Where    *WhereClause         `parser:"@@?"`
 		GroupBy  *GroupByClause       `parser:"@@?"`
 		Having   *HavingClause        `parser:"@@?"`
@@ -144,6 +146,12 @@ type (
 	JoinCondition struct {
 		On    *Expression `parser:"'ON' @@"`
 		Using []string    `parser:"| 'USING' '(' @(Ident | BacktickIdent) (',' @(Ident | BacktickIdent))* ')'"`
+	}
+
+	// PrewhereClause represents ClickHouse PREWHERE (evaluated before WHERE).
+	PrewhereClause struct {
+		Prewhere  string     `parser:"'PREWHERE'"`
+		Condition Expression `parser:"@@"`
 	}
 
 	// WhereClause represents WHERE clause

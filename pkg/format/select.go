@@ -50,6 +50,10 @@ func (f *Formatter) formatSelectStatement(stmt *parser.SelectStatement) string {
 		lines = append(lines, f.formatFromClause(stmt.From))
 	}
 
+	if stmt.Prewhere != nil {
+		lines = append(lines, f.formatPrewhereClause(stmt.Prewhere))
+	}
+
 	// WHERE clause
 	if stmt.Where != nil {
 		lines = append(lines, f.formatWhereClause(stmt.Where))
@@ -112,6 +116,9 @@ func (f *Formatter) formatUnionClause(u *parser.UnionClause) []string {
 
 	if u.From != nil {
 		lines = append(lines, f.formatFromClause(u.From))
+	}
+	if u.Prewhere != nil {
+		lines = append(lines, f.formatPrewhereClause(u.Prewhere))
 	}
 	if u.Where != nil {
 		lines = append(lines, f.formatWhereClause(u.Where))
@@ -316,6 +323,13 @@ func (f *Formatter) formatJoinClause(join *parser.JoinClause) string {
 	}
 
 	return result
+}
+
+func (f *Formatter) formatPrewhereClause(prewhere *parser.PrewhereClause) string {
+	if prewhere == nil {
+		return ""
+	}
+	return f.keyword("PREWHERE") + " " + f.formatExpression(&prewhere.Condition)
 }
 
 // formatWhereClause formats WHERE clause

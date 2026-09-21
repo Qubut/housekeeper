@@ -622,12 +622,10 @@ func buildEngineString(engine *parser.ViewEngine) string {
 		result += "()"
 	}
 
-	// Add ORDER BY if present (proper format with spaces)
 	if engine.OrderBy != nil {
 		result += " ORDER BY " + engine.OrderBy.Expression.String()
 	}
 
-	// Add PARTITION BY if present (proper format with spaces)
 	if engine.PartitionBy != nil {
 		result += " PARTITION BY " + engine.PartitionBy.Expression.String()
 	}
@@ -753,10 +751,13 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 	if (stmt1.With == nil) != (stmt2.With == nil) {
 		return false
 	}
-	if len(stmt1.Columns) != len(stmt2.Columns) {
+	if !isLoneStarSelect(stmt1.Columns) && !isLoneStarSelect(stmt2.Columns) && len(stmt1.Columns) != len(stmt2.Columns) {
 		return false
 	}
 	if (stmt1.From == nil) != (stmt2.From == nil) {
+		return false
+	}
+	if (stmt1.Prewhere == nil) != (stmt2.Prewhere == nil) {
 		return false
 	}
 	if (stmt1.Where == nil) != (stmt2.Where == nil) {
@@ -778,21 +779,28 @@ func selectStatementsAreEqualNormalized(stmt1, stmt2 *parser.SelectStatement) bo
 		return false
 	}
 
-	for i := range stmt1.Columns {
-		c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
-		if (c1.Star != nil) != (c2.Star != nil) {
-			return false
-		}
-		if normalizeSelectExpr(c1.Expression) != normalizeSelectExpr(c2.Expression) {
-			return false
-		}
-		if normalizeIdent(c1.Alias) != normalizeIdent(c2.Alias) {
-			return false
+	if !isLoneStarSelect(stmt1.Columns) && !isLoneStarSelect(stmt2.Columns) {
+		for i := range stmt1.Columns {
+			c1, c2 := stmt1.Columns[i], stmt2.Columns[i]
+			if (c1.Star != nil) != (c2.Star != nil) {
+				return false
+			}
+			if normalizeSelectExpr(c1.Expression) != normalizeSelectExpr(c2.Expression) {
+				return false
+			}
+			if normalizeIdent(c1.Alias) != normalizeIdent(c2.Alias) {
+				return false
+			}
 		}
 	}
 
 	if !fromClausesAreEqual(stmt1.From, stmt2.From) {
 		return false
+	}
+	if stmt1.Prewhere != nil && stmt2.Prewhere != nil {
+		if normalizeSelectExpr(&stmt1.Prewhere.Condition) != normalizeSelectExpr(&stmt2.Prewhere.Condition) {
+			return false
+		}
 	}
 	if stmt1.Where != nil && stmt2.Where != nil {
 		if normalizeSelectExpr(&stmt1.Where.Condition) != normalizeSelectExpr(&stmt2.Where.Condition) {
@@ -832,6 +840,10 @@ func selectStatementsAreEqualAST(stmt1, stmt2 *parser.SelectStatement) bool {
 
 	// Compare FROM clauses
 	if !fromClausesAreEqual(stmt1.From, stmt2.From) {
+		return false
+	}
+
+	if !prewhereClausesAreEqual(stmt1.Prewhere, stmt2.Prewhere) {
 		return false
 	}
 
@@ -893,6 +905,9 @@ func unionClausesAreEqual(u1, u2 []parser.UnionClause) bool {
 		if !fromClausesAreEqual(a.From, b.From) {
 			return false
 		}
+		if !prewhereClausesAreEqual(a.Prewhere, b.Prewhere) {
+			return false
+		}
 		if !whereClausesAreEqual(a.Where, b.Where) {
 			return false
 		}
@@ -939,6 +954,13 @@ func commonTableExpressionsAreEqual(a, b parser.CommonTableExpression) bool {
 	}
 	return normalizeIdentifier(a.Expr.Name) == normalizeIdentifier(b.Expr.Name) &&
 		expressionsAreEqual(a.Expr.Expression, b.Expr.Expression)
+}
+
+func prewhereClausesAreEqual(prewhere1, prewhere2 *parser.PrewhereClause) bool {
+	if eq, done := compare.NilCheck(prewhere1, prewhere2); !done {
+		return eq
+	}
+	return expressionsAreEqual(&prewhere1.Condition, &prewhere2.Condition)
 }
 
 // whereClausesAreEqual compares WHERE clauses
@@ -996,8 +1018,17 @@ func orderByColumnsAreEqual(col1, col2 *parser.OrderByColumn) bool {
 	return dir1 == dir2 && nulls1 == nulls2
 }
 
-// selectColumnsAreEqual compares SELECT column lists
+func isLoneStarSelect(cols []parser.SelectColumn) bool {
+	return len(cols) == 1 && cols[0].Star != nil
+}
+
+// selectColumnsAreEqual compares SELECT column lists.
+// A lone `*` on either side matches any projection: ClickHouse
+// create_table_query expands `SELECT *` to the view's stored columns.
 func selectColumnsAreEqual(cols1, cols2 []parser.SelectColumn) bool {
+	if isLoneStarSelect(cols1) || isLoneStarSelect(cols2) {
+		return true
+	}
 	if len(cols1) != len(cols2) {
 		return false
 	}
